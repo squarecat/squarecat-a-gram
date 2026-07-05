@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+.font-hand {
+  font-family: 'Butterfly Kids', cursive;
+  font-weight: 600;
+}
+
+h1.font-hand {
+  font-weight: 400;  
+}
+
+/* subtle paper grain: tiled SVG fractal noise, no image file needed */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E");
+}
+
+/* no page scroll behind the lightbox */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+/* masonry: never more columns than images (--n), else short posts leave dead space right.
+   Width is capped at ~240px per column and centered, so posts with few images keep the
+   same image size as full rows instead of growing to fill the viewport. */
+.masonry {
+  column-gap: 1px;
+  column-count: min(6, var(--n));
+  max-width: calc(min(6, var(--n)) * 240px);
+  margin-inline: auto;
+}
+
+hr {
+  margin-top: 2em;
+  opacity: 0.1;
+}

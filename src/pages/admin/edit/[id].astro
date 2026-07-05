@@ -1,0 +1,123 @@
+---
+// Auth is nginx HTTP Basic on /admin + /api/ plus the ADMIN_PASSWORD form field.
+import '../../../styles/global.css';
+import { readPosts } from '../../../lib/store';
+
+const post = (await readPosts()).find((p) => p.id === Astro.params.id);
+if (!post) return new Response('Post not found', { status: 404 });
+
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Edit post</title>
+  </head>
+  <body class="bg-neutral-50 text-neutral-800 antialiased">
+    <div class="mx-auto max-w-xl px-4 py-16">
+      <a href="/admin" class="text-sm text-neutral-500 hover:text-neutral-800">&larr; Admin</a>
+      <h1 class="mt-2 mb-2 text-xl font-semibold text-neutral-900">Edit post</h1>
+      <p class="mb-6 text-sm text-neutral-500">
+        {post.images.length} photo{post.images.length === 1 ? '' : 's'} · published {fmt(post.createdAt)}
+      </p>
+      <div class="mb-8 flex gap-1.5 overflow-x-auto">
+        {post.images.slice(0, 8).map((img) => (
+          <img src={img.src} class="h-16 w-16 shrink-0 rounded object-cover" alt="" />
+        ))}
+        {post.images.length > 8 && (
+          <span class="self-center pl-1 text-sm text-neutral-400">+{post.images.length - 8}</span>
+        )}
+      </div>
+
+      <form method="post" action="/api/update" class="space-y-5">
+        <input type="hidden" name="id" value={post.id} />
+        <label class="block">
+          <span class="text-sm font-medium">Title <span class="font-normal text-neutral-400">(optional)</span></span>
+          <input
+            type="text"
+            name="title"
+            value={post.title ?? ''}
+            placeholder="Bangkok"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Caption</span>
+          <textarea
+            name="caption"
+            rows="4"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          >{post.caption}</textarea>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Ente album link</span>
+          <input
+            type="url"
+            name="enteUrl"
+            value={post.enteUrl ?? ''}
+            placeholder={post.enteUrl ? undefined : 'Not stored for this post — paste it to re-sync'}
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Date</span>
+          <input
+            type="date"
+            name="date"
+            value={post.createdAt.slice(0, 10)}
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="resync" class="h-4 w-4 accent-neutral-900" />
+          <span class="text-sm">Re-download photos from the album (picks up added/removed photos)</span>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Password</span>
+          <input
+            type="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <div class="flex items-center justify-between">
+          <button
+            class="cursor-pointer rounded-lg bg-neutral-900 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-wait disabled:bg-neutral-400"
+          >
+            Save
+          </button>
+          <button
+            formaction="/api/delete"
+            formnovalidate
+            id="delete"
+            class="cursor-pointer rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:text-neutral-400"
+          >
+            Delete post
+          </button>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-500">
+          Re-syncing downloads and processes the whole album again — it can take a couple of minutes.
+        </p>
+      </form>
+    </div>
+    <script>
+      const form = document.querySelector('form')!;
+      const del = document.getElementById('delete') as HTMLButtonElement;
+      del.addEventListener('click', (e) => {
+        if (!confirm('Delete this post and its photos? This cannot be undone.')) e.preventDefault();
+      });
+      form.addEventListener('submit', (e) => {
+        for (const btn of form.querySelectorAll('button')) btn.disabled = true;
+        (e.submitter as HTMLButtonElement).textContent =
+          e.submitter === del ? 'Deleting…' : 'Saving…';
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,109 @@
+---
+// Auth is nginx HTTP Basic on /admin + /api/ plus the ADMIN_PASSWORD form field.
+import '../styles/global.css';
+import { readPosts } from '../lib/store';
+
+const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>New post</title>
+  </head>
+  <body class="bg-neutral-50 text-neutral-800 antialiased">
+    <div class="mx-auto max-w-xl px-4 py-16">
+      <h1 class="mb-8 text-xl font-semibold text-neutral-900">New post</h1>
+      <form method="post" action="/api/publish" class="space-y-5">
+        <label class="block">
+          <span class="text-sm font-medium">Ente album link</span>
+          <input
+            type="url"
+            name="enteUrl"
+            required
+            placeholder="https://photos-public.squarecat.io/?t=…#…"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Date <span class="font-normal text-neutral-400">(optional — for backdating; empty = today)</span></span>
+          <input
+            type="date"
+            name="date"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Password</span>
+          <input
+            type="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Title <span class="font-normal text-neutral-400">(optional — e.g. a location, "Bangkok")</span></span>
+          <input
+            type="text"
+            name="title"
+            placeholder="Bangkok"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Caption</span>
+          <textarea
+            name="caption"
+            rows="4"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          ></textarea>
+        </label>
+        <button
+          class="cursor-pointer rounded-lg bg-neutral-900 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-wait disabled:bg-neutral-400"
+        >
+          Publish
+        </button>
+        <p class="text-sm leading-relaxed text-neutral-500">
+          Publishing downloads and processes every photo in the album — it can take a couple of
+          minutes. Leave this page open; you'll land on the feed when it's done.
+        </p>
+      </form>
+
+      {posts.length > 0 && (
+        <section class="mt-14">
+          <h2 class="mb-4 text-sm font-semibold tracking-wide text-neutral-500 uppercase">Posts</h2>
+          <ul class="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+            {posts.map((post) => (
+              <li>
+                <a href={`/admin/edit/${post.id}`} class="flex items-center gap-3 px-3 py-2.5 hover:bg-neutral-50">
+                  <img src={post.images[0]?.src} class="h-12 w-12 shrink-0 rounded object-cover" alt="" />
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm">{post.title || post.caption || 'Untitled'}</span>
+                    <span class="block text-xs text-neutral-400">
+                      {fmt(post.createdAt)} · {post.images.length} photo{post.images.length === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                  <span class="text-sm text-neutral-400">Edit &rarr;</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+    <script>
+      document.querySelector('form')!.addEventListener('submit', () => {
+        const btn = document.querySelector('button')!;
+        btn.disabled = true;
+        btn.textContent = 'Publishing…';
+      });
+    </script>
+  </body>
+</html>

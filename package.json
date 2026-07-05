@@ -1,0 +1,28 @@
+{
+  "name": "travel-feed",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "start": "node dist/server/entry.mjs",
+    "selfcheck": "node --experimental-strip-types src/lib/ente.ts"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9",
+    "@tailwindcss/vite": "^4.3.2",
+    "astro": "^5",
+    "bs58": "^6",
+    "dotenv": "^17.4.2",
+    "heic-convert": "^2",
+    "libsodium-wrappers": "^0.7",
+    "sharp": "^0.34",
+    "tailwindcss": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/libsodium-wrappers": "^0.7",
+    "@types/node": "^22"
+  }
+}
