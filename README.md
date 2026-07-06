@@ -1,10 +1,14 @@
-# travel-feed
+# Squarecat-a-gram
 
 A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
 pasting an album share link + a caption into a password-gated form; the server downloads the
 photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
 a fully public feed of masonry/scroller photo posts with comments and emoji reactions. No
 database — posts live in a JSON file.
+
+<img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
+
+Example at https://feed.squarecat.io
 
 Built-in photo source: **[Ente](https://ente.io)** public album links (including self-hosted
 Ente). Other sources (Google Photos, …) can be added — see [Writing a photo source](#writing-a-photo-source).
