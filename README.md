@@ -1,126 +1,122 @@
 # travel-feed
 
-Public photo blog backed by Ente. A post = one Ente **public album share link** + a caption,
-published via a password-gated form at `/admin`. Photos are downloaded, decrypted, and optimised
-**once, server-side, at publish time** — visitors get plain webp files, no crypto in the browser.
+A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
+pasting an album share link + a caption into a password-gated form; the server downloads the
+photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
+a fully public feed of masonry/scroller photo posts with comments and emoji reactions. No
+database — posts live in a JSON file.
 
-## Install
+Built-in photo source: **[Ente](https://ente.io)** public album links (including self-hosted
+Ente). Other sources (Google Photos, …) can be added — see [Writing a photo source](#writing-a-photo-source).
 
-Needs **Node ≥ 20.19** to run (Astro dep engines), **≥ 22.6** for `yarn selfcheck`
-(`--experimental-strip-types`).
-
-```sh
-yarn add libsodium-wrappers bs58 sharp heic-convert astro @astrojs/node
-yarn add -D @types/libsodium-wrappers @types/node
-```
-
-(Or just `yarn` — everything is already in `package.json`.)
-
-`heic-convert` is a fallback used only if sharp's libvips lacks HEIF support (iPhone HEIC
-originals). The publish route tries sharp first and falls back automatically, so it's safe to
-leave installed either way.
-
-## Run
+## Quick start
 
 ```sh
-yarn dev          # dev server on :2987
-yarn selfcheck    # crypto vectors (base58 / SecretBox / SecretStream round-trips)
-yarn selfcheck "https://photos-public.squarecat.io/?t=…#…"   # + live album check
-yarn build && yarn start   # production
+yarn                 # Node ≥ 20.19 (≥ 22.6 for yarn selfcheck)
+yarn dev             # dev server on :2987
+yarn build && yarn start
 ```
 
-First publish: use a **1-photo album** to shake out the crypto/HEIC path before trusting a
-full album.
+Then make it yours:
 
-## Env vars
+1. Edit **`site.json`** — site name, subtitle, tagline, default author.
+2. Replace **`public/assets/icon.png`** and **`icon-256.png`** (favicon + header icon).
+3. Optional: swap the handwriting font — the Google Fonts `<link>` and `.font-hand` family in
+   `src/styles/global.css` / `src/pages/index.astro` control the site; the TTF in `fonts/`
+   controls the social-preview image (path configured at the top of `src/pages/og.jpg.ts`).
+4. Set `ADMIN_PASSWORD` (see env vars) and publish your first post at `/admin`.
+
+First publish: use a **1-photo album** to shake out the pipeline before trusting a full album.
+
+## Configuration
+
+### `site.json`
+
+| Key | Used for |
+|---|---|
+| `name` | `<h1>`, `<title>`, OG title, handwritten line of the OG image |
+| `subtitle` | `<title>`, second line of the OG image |
+| `tagline` | Header subheading, OG description fallback |
+| `defaultAuthor` | Prefill for the "Posted by" form field + signature fallback for old posts |
+
+Rebuild after changing it (`yarn build`) — it's bundled at build time.
+
+### Environment variables
+
+A `.env` file in the working directory is loaded automatically (dotenv); already-set vars
+(e.g. systemd `Environment=`) win.
 
 | Var | Default | |
 |---|---|---|
-| `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` form to publish |
-| `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Self-hosted museum API (not the share-page host) |
+| `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` forms to publish/edit/delete |
+| `SITE_URL` | *(request origin)* | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs |
+| `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts) |
 | `DATA_FILE` | `data/posts.json` | Post store |
 | `MEDIA_DIR` | `media` | Optimised images, written at publish time |
-| `HOST` / `PORT` | `0.0.0.0` / `4321` | Node server bind |
+| `HOST` / `PORT` | `0.0.0.0` / `2987` | Node server bind (`yarn start` sets these) |
 
-Paths are relative to the working directory. A `.env` file in the working directory is loaded
-automatically (dotenv) — handy locally; on the droplet the systemd `Environment=` lines win
-(dotenv never overrides already-set vars).
-
-## Deploy (DigitalOcean droplet)
-
-Build on the droplet (sharp has native binaries):
+### Self-check
 
 ```sh
-cd /opt/travel-feed
-yarn && yarn build
+yarn selfcheck                      # crypto vectors (base58 / SecretBox / SecretStream)
+yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
 ```
 
-### systemd — `/etc/systemd/system/travel-feed.service`
+## Writing a photo source
 
-```ini
-[Unit]
-Description=travel-feed
-After=network.target
+A source turns a share URL into a list of downloadable original images. The whole contract is
+in `src/sources/types.ts`:
 
-[Service]
-WorkingDirectory=/opt/travel-feed
-ExecStart=/usr/bin/node dist/server/entry.mjs
-Environment=HOST=127.0.0.1
-Environment=PORT=2987
-Environment=ADMIN_PASSWORD=change-me
-Restart=on-failure
-User=www-data
+```ts
+export interface AlbumImage {
+  title: string;               // original filename (drives HEIC handling)
+  takenAt: number;             // epoch µs, for ordering
+  download(): Promise<Buffer>; // original image bytes, decrypted/decoded
+}
 
-[Install]
-WantedBy=multi-user.target
-```
-
-`/opt/travel-feed/data` and `/opt/travel-feed/media` must be writable by `www-data`.
-
-### nginx — auth + static media
-
-```sh
-apt install apache2-utils
-htpasswd -c /etc/nginx/.htpasswd-feed <username>
-```
-
-```nginx
-server {
-    server_name feed.squarecat.io;
-
-    # publish-time media, served statically (the app has a fallback route for dev)
-    location /media/ {
-        alias /opt/travel-feed/media/;
-        expires max;
-        add_header Cache-Control "public, immutable";
-    }
-
-    location /admin {
-        auth_basic "feed admin";
-        auth_basic_user_file /etc/nginx/.htpasswd-feed;
-        proxy_pass http://127.0.0.1:2987;
-        proxy_set_header Host $host;
-    }
-
-    location /api/ {
-        auth_basic "feed admin";
-        auth_basic_user_file /etc/nginx/.htpasswd-feed;
-        proxy_pass http://127.0.0.1:2987;
-        proxy_set_header Host $host;
-        # publish decrypts + re-encodes a whole album synchronously in the POST
-        proxy_read_timeout 600s;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:2987;
-        proxy_set_header Host $host;
-    }
+export interface Source {
+  name: string;
+  matches(shareUrl: string): boolean;
+  /** Validate + list album images, sorted by takenAt. Throw human-readable errors. */
+  list(shareUrl: string): Promise<AlbumImage[]>;
 }
 ```
 
-Then certbot as usual.
+Add a module in `src/sources/` and register it in `src/sources/index.ts`:
 
-## Out of v1 (deliberately)
+```ts
+export const sources: Source[] = [enteSource, googlePhotosSource];
+```
 
-Videos/live photos (skipped with a note), edit/delete/reorder posts, per-photo captions,
-password-protected Ente links, multiple albums per post.
+The publish pipeline (`src/lib/publish.ts`) handles everything after `download()`: HEIC
+fallback, EXIF stripping, resizing, webp encoding, and the post store. Sources should filter
+out non-images (videos etc.) themselves. `src/sources/ente.ts` is the reference
+implementation, including end-to-end decryption of Ente's public albums.
+
+## Deploy (Docker)
+
+```sh
+docker compose up -d          # edit docker-compose.yml env first
+# or:
+docker build -t travel-feed .
+docker run -d -p 2987:2987 \
+  -e ADMIN_PASSWORD=change-me -e SITE_URL=https://feed.example.com \
+  -v ./data:/app/data -v ./media:/app/media \
+  travel-feed
+```
+
+The app listens on `:2987` and serves everything itself (pages, `/media/*` with immutable
+cache headers, the admin). Put whatever TLS/proxy you like in front — one note if you do:
+publishing processes a whole album synchronously in the POST, so give the proxy a generous
+read timeout (e.g. 600s).
+
+`data/` and `media/` are the only state — mount them as volumes and back them up.
+
+Non-Docker deploys work too: `yarn && yarn build`, then run `node dist/server/entry.mjs` with
+the env vars set (Node ≥ 20.19; `heic-convert` covers HEIC if the host's sharp lacks libheif).
+
+## Deliberately not included
+
+Videos/live photos (skipped at publish with a note), comment moderation UI (edit
+`data/posts.json`), reaction rate-limiting beyond a honeypot + localStorage, multiple albums
+per post. All additive.

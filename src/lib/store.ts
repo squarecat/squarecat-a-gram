@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 export interface Post {
   id: string;
   title?: string; // short location label, e.g. "Bangkok"
+  author?: string; // signature under the caption; falls back to site.json defaultAuthor
   caption: string;
   createdAt: string; // ISO
   enteUrl?: string; // kept for re-sync; absent on pre-edit-feature posts

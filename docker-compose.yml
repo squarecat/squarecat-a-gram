@@ -1,0 +1,13 @@
+services:
+  feed:
+    build: .
+    ports:
+      - '2987:2987'
+    environment:
+      ADMIN_PASSWORD: change-me
+      SITE_URL: https://feed.example.com
+      # ENTE_API_BASE: https://api.ente.io
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+    restart: unless-stopped

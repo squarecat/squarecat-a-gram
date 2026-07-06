@@ -17,6 +17,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     if (!post) return new Response('Post not found', { status: 404 });
 
     post.title = String(form.get('title') ?? '').trim();
+    post.author = String(form.get('author') ?? '').trim();
     post.caption = caption;
     if (enteUrl) post.enteUrl = enteUrl;
     const date = String(form.get('date') ?? '').trim();

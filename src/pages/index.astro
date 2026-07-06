@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import site from '../../site.json';
 import { readPosts, REACTION_EMOJIS } from '../lib/store';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -8,11 +9,11 @@ const fmt = (iso: string) =>
 
 // Open Graph unfurl: latest post's first photo + caption. SITE_URL env needed in prod
 // for absolute image URLs (the node adapter can't know its public origin behind nginx).
-const site = (process.env.SITE_URL ?? Astro.url.origin).replace(/\/$/, '');
+const origin = (process.env.SITE_URL ?? Astro.url.origin).replace(/\/$/, '');
 const latest = posts[0];
 const ogDescription = latest
   ? [fmt(latest.createdAt), latest.title, latest.caption].filter(Boolean).join(' — ').slice(0, 200)
-  : "We don't use instagram, so keep up with our travel photos here!";
+  : site.tagline;
 
 // >6 photos → horizontal 2-row scroller. Odd count: first photo becomes a
 // double-height hero. Rows are balanced by cumulative width (aspect ratio at equal
@@ -37,14 +38,14 @@ const scrollRows = (images: Images) => {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Squarecat Travel Feed - Squarecat-a-gram</title>
+    <title>{site.name} — {site.subtitle}</title>
     <link rel="icon" href="/assets/icon-256.png" type="image/png" />
-    <meta property="og:title" content="Squarecat-a-gram travel feed" />
+    <meta property="og:title" content={`${site.name} ${site.subtitle}`} />
     <meta property="og:description" content={ogDescription} />
-    <meta property="og:image" content={`${site}/og.jpg`} />
+    <meta property="og:image" content={`${origin}/og.jpg`} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content={site + '/'} />
+    <meta property="og:url" content={origin + '/'} />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,10 +55,10 @@ const scrollRows = (images: Images) => {
   <body class="bg-white text-neutral-800 antialiased">
     <header class="py-14 text-center">
       <img src="/assets/icon-256.png" alt="" class="h-16 w-16 mx-auto" />
-      <h1 class="font-hand flex items-center justify-center gap-4 text-6xl text-neutral-900">        
-        Squarecat-a-gram: Travel Feed
+      <h1 class="font-hand flex items-center justify-center gap-4 text-6xl text-neutral-900">
+        {site.name}: {site.subtitle}
       </h1>
-      <p class="mt-2">We don't use instagram, so keep up with our travel photos here!</p>
+      <p class="mt-2">{site.tagline}</p>
     </header>
 
     <main class="space-y-24 pb-24">
@@ -120,7 +121,7 @@ const scrollRows = (images: Images) => {
               {post.caption && (
                 <p class="whitespace-pre-wrap text-[17px] leading-relaxed text-neutral-700">{post.caption}</p>
               )}
-              <p class="font-hand mt-3 text-3xl text-neutral-700">- Danielle</p>
+              <p class="font-hand mt-3 text-3xl text-neutral-700">- {post.author || site.defaultAuthor}</p>
 
               
 

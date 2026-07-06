@@ -3,14 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import {
-  decryptFileKey,
-  decryptMetadata,
-  downloadAndDecryptImage,
-  getInfo,
-  listFiles,
-  parseShareUrl,
-} from './ente';
+import { findSource } from '../sources';
 import type { Post } from './store';
 
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
@@ -43,35 +36,22 @@ function toWebp(buf: Buffer) {
  * replacing whatever was there. Filenames carry a stamp because /media is served
  * with immutable caching — a re-sync must produce new URLs.
  */
-export async function albumToImages(enteUrl: string, postId: string): Promise<Post['images']> {
-  const { token, collectionKey } = parseShareUrl(enteUrl);
-  await getInfo(token); // throws if expired / downloads disabled
-  const files = await listFiles(token);
+export async function albumToImages(albumUrl: string, postId: string): Promise<Post['images']> {
+  const album = await findSource(albumUrl).list(albumUrl); // sorted by takenAt
 
   const dir = join(MEDIA_DIR, postId);
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
 
-  // decrypt keys + metadata first, so photos can be ordered by when they were taken
-  // (creationTime) rather than when they were added to the album (updationTime)
-  const metas = [];
-  for (const f of files) {
-    const fileKey = await decryptFileKey(f, collectionKey);
-    const meta = await decryptMetadata(f, fileKey);
-    if (meta.fileType !== 0) continue; // ponytail: images only in v1; skip video/live photo
-    metas.push({ f, fileKey, meta });
-  }
-  metas.sort((a, b) => (a.meta.creationTime ?? 0) - (b.meta.creationTime ?? 0));
-
   const stamp = Date.now().toString(36);
   const images: Post['images'] = [];
-  for (const { f, fileKey, meta } of metas) {
-    let buf = await downloadAndDecryptImage(token, f, fileKey);
+  for (const image of album) {
+    let buf = await image.download();
     let out;
     try {
       out = await toWebp(buf);
     } catch (err) {
-      if (!/\.hei[cf]$/i.test(meta.title ?? '')) throw err;
+      if (!/\.hei[cf]$/i.test(image.title)) throw err;
       // sharp built without libheif — convert HEIC → JPEG first
       const convert = (await import('heic-convert')).default;
       buf = Buffer.from(await convert({ buffer: buf, format: 'JPEG', quality: 0.9 }));

@@ -1,15 +1,28 @@
 import 'dotenv/config';
 import type { APIRoute } from 'astro';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import opentype from 'opentype.js';
+import site from '../../site.json';
 import { readPosts } from '../lib/store';
-// "Squarecat-a-gram" pre-rendered to SVG paths (Butterfly Kids, 110px, baseline y=0) —
-// sharp's SVG renderer can't load webfonts, and system font config differs per OS.
-// Regenerate with opentype.js from fonts/ButterflyKids-Regular.ttf if the text changes.
-import titlePath from '../assets/og-title-path.txt?raw';
 
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
+// The handwriting font for site.name — swap the TTF to change the OG look.
+// Rendered to SVG paths at runtime because sharp's SVG renderer can't load webfonts
+// and system font config differs per OS.
+const TITLE_FONT = 'fonts/ButterflyKids-Regular.ttf';
 const esc = (s: string) => s.replace(/[<>&'"]/g, (c) => `&#${c.charCodeAt(0)};`);
+
+let titlePathCached: string | null = null;
+async function titlePath(): Promise<string> {
+  if (!titlePathCached) {
+    const buf = await readFile(TITLE_FONT);
+    const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    titlePathCached = font.getPath(site.name, 0, 0, 110).toPathData(1);
+  }
+  return titlePathCached;
+}
 
 // 1200x630 unfurl image: latest post's first photo, dark gradient, title text on top.
 export const GET: APIRoute = async () => {
@@ -18,7 +31,7 @@ export const GET: APIRoute = async () => {
   const date = latest
     ? new Date(latest.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
-  const subtitle = latest ? [date, latest.title].filter(Boolean).join(' — ') : 'Travel photos';
+  const subtitle = latest ? [date, latest.title].filter(Boolean).join(' — ') : site.tagline;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
     <defs>
@@ -28,8 +41,8 @@ export const GET: APIRoute = async () => {
       </linearGradient>
     </defs>
     <rect width="1200" height="630" fill="url(#g)"/>
-    <path transform="translate(60 440)" d="${titlePath}" fill="#fff"/>
-    <text x="60" y="516" font-family="Helvetica, Arial, sans-serif" font-size="52" font-weight="700" fill="#fff">Travel Feed</text>
+    <path transform="translate(60 440)" d="${await titlePath()}" fill="#fff"/>
+    <text x="60" y="516" font-family="Helvetica, Arial, sans-serif" font-size="52" font-weight="700" fill="#fff">${esc(site.subtitle)}</text>
     <text x="60" y="574" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#fff" fill-opacity="0.85">${esc(subtitle)}</text>
   </svg>`;
 

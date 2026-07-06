@@ -1,9 +1,10 @@
-// Ente public-album client: parse share URL → info → diff → per-file decrypt.
+// Ente public-album source: parse share URL → info → diff → per-file decrypt.
 // Spec grounded against github.com/ente-io/ente web/apps/albums — see plan.md.
 //
 // Self-check (crypto vectors + optional live album):
-//   node --experimental-strip-types src/lib/ente.ts [shareUrl]
+//   yarn selfcheck [shareUrl]
 import 'dotenv/config';
+import type { AlbumImage, Source } from './types';
 import { createRequire } from 'node:module';
 import type _sodiumT from 'libsodium-wrappers';
 import bs58 from 'bs58';
@@ -145,6 +146,36 @@ export async function downloadAndDecryptImage(
   const cipher = new Uint8Array(await res.arrayBuffer());
   return decryptStream(cipher, file.file.decryptionHeader, fileKey);
 }
+
+export const enteSource: Source = {
+  name: 'ente',
+  matches(url) {
+    try {
+      parseShareUrl(url);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  async list(url) {
+    const { token, collectionKey } = parseShareUrl(url);
+    await getInfo(token); // throws if expired / downloads disabled
+    const files = await listFiles(token);
+    const images: AlbumImage[] = [];
+    for (const f of files) {
+      const fileKey = await decryptFileKey(f, collectionKey);
+      const meta = await decryptMetadata(f, fileKey);
+      if (meta.fileType !== 0) continue; // ponytail: images only; skip video/live photo
+      images.push({
+        title: meta.title ?? '',
+        takenAt: meta.creationTime ?? 0,
+        download: () => downloadAndDecryptImage(token, f, fileKey),
+      });
+    }
+    // order by when the photo was taken, not when it was added to the album
+    return images.sort((a, b) => a.takenAt - b.takenAt);
+  },
+};
 
 // __main__ self-check: fails loudly if the crypto path is broken.
 if (process.argv[1]?.endsWith('ente.ts')) {
