@@ -52,12 +52,20 @@ export async function albumToImages(enteUrl: string, postId: string): Promise<Po
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
 
-  const stamp = Date.now().toString(36);
-  const images: Post['images'] = [];
+  // decrypt keys + metadata first, so photos can be ordered by when they were taken
+  // (creationTime) rather than when they were added to the album (updationTime)
+  const metas = [];
   for (const f of files) {
     const fileKey = await decryptFileKey(f, collectionKey);
     const meta = await decryptMetadata(f, fileKey);
     if (meta.fileType !== 0) continue; // ponytail: images only in v1; skip video/live photo
+    metas.push({ f, fileKey, meta });
+  }
+  metas.sort((a, b) => (a.meta.creationTime ?? 0) - (b.meta.creationTime ?? 0));
+
+  const stamp = Date.now().toString(36);
+  const images: Post['images'] = [];
+  for (const { f, fileKey, meta } of metas) {
     let buf = await downloadAndDecryptImage(token, f, fileKey);
     let out;
     try {

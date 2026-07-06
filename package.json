@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "start": "node dist/server/entry.mjs",
+    "start": "HOST=0.0.0.0 PORT=2987 node dist/server/entry.mjs",
     "selfcheck": "node --experimental-strip-types src/lib/ente.ts"
   },
   "dependencies": {

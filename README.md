@@ -23,7 +23,7 @@ leave installed either way.
 ## Run
 
 ```sh
-yarn dev          # dev server on :4321
+yarn dev          # dev server on :2987
 yarn selfcheck    # crypto vectors (base58 / SecretBox / SecretStream round-trips)
 yarn selfcheck "https://photos-public.squarecat.io/?t=…#…"   # + live album check
 yarn build && yarn start   # production
@@ -66,7 +66,7 @@ After=network.target
 WorkingDirectory=/opt/travel-feed
 ExecStart=/usr/bin/node dist/server/entry.mjs
 Environment=HOST=127.0.0.1
-Environment=PORT=4321
+Environment=PORT=2987
 Environment=ADMIN_PASSWORD=change-me
 Restart=on-failure
 User=www-data
@@ -98,21 +98,21 @@ server {
     location /admin {
         auth_basic "feed admin";
         auth_basic_user_file /etc/nginx/.htpasswd-feed;
-        proxy_pass http://127.0.0.1:4321;
+        proxy_pass http://127.0.0.1:2987;
         proxy_set_header Host $host;
     }
 
     location /api/ {
         auth_basic "feed admin";
         auth_basic_user_file /etc/nginx/.htpasswd-feed;
-        proxy_pass http://127.0.0.1:4321;
+        proxy_pass http://127.0.0.1:2987;
         proxy_set_header Host $host;
         # publish decrypts + re-encodes a whole album synchronously in the POST
         proxy_read_timeout 600s;
     }
 
     location / {
-        proxy_pass http://127.0.0.1:4321;
+        proxy_pass http://127.0.0.1:2987;
         proxy_set_header Host $host;
     }
 }

@@ -1,18 +1,34 @@
 ---
 import '../styles/global.css';
-import { readPosts } from '../lib/store';
+import { readPosts, REACTION_EMOJIS } from '../lib/store';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// >12 photos → horizontal 2-row scroller. Odd count: first photo becomes a
-// double-height hero so both rows get an even split (kills the ragged end).
+// Open Graph unfurl: latest post's first photo + caption. SITE_URL env needed in prod
+// for absolute image URLs (the node adapter can't know its public origin behind nginx).
+const site = (process.env.SITE_URL ?? Astro.url.origin).replace(/\/$/, '');
+const latest = posts[0];
+const ogDescription = latest
+  ? [fmt(latest.createdAt), latest.title, latest.caption].filter(Boolean).join(' — ').slice(0, 200)
+  : "We don't use instagram, so keep up with our travel photos here!";
+
+// >6 photos → horizontal 2-row scroller. Odd count: first photo becomes a
+// double-height hero. Rows are balanced by cumulative width (aspect ratio at equal
+// height), not photo count, so a landscape-heavy row can't run long.
 type Images = (typeof posts)[number]['images'];
 const scrollRows = (images: Images) => {
   const hero = images.length % 2 ? images[0] : null;
   const rest = hero ? images.slice(1) : images;
-  return { hero, rows: [rest.filter((_, i) => i % 2 === 0), rest.filter((_, i) => i % 2 === 1)] };
+  const rows: [Images, Images] = [[], []];
+  const width = [0, 0];
+  for (const img of rest) {
+    const r = width[0] <= width[1] ? 0 : 1;
+    rows[r].push(img);
+    width[r] += img.w / img.h;
+  }
+  return { hero, rows };
 };
 ---
 
@@ -22,14 +38,26 @@ const scrollRows = (images: Images) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Squarecat Travel Feed - Squarecat-a-gram</title>
+    <link rel="icon" href="/assets/icon-256.png" type="image/png" />
+    <meta property="og:title" content="Squarecat-a-gram travel feed" />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:image" content={`${site}/og.jpg`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={site + '/'} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Butterfly+Kids&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-white text-neutral-800 antialiased">
     <header class="py-14 text-center">
-      <h1 class="font-hand text-6xl text-neutral-900">Squarecat-a-gram: Travel Feed</h1>
-      <p class="mt-2">We don't use instragram, so keep up with our travels here!</p>
+      <img src="/assets/icon-256.png" alt="" class="h-16 w-16 mx-auto" />
+      <h1 class="font-hand flex items-center justify-center gap-4 text-6xl text-neutral-900">        
+        Squarecat-a-gram: Travel Feed
+      </h1>
+      <p class="mt-2">We don't use instagram, so keep up with our travel photos here!</p>
     </header>
 
     <main class="space-y-24 pb-24">
@@ -43,9 +71,9 @@ const scrollRows = (images: Images) => {
               <time datetime={post.createdAt}>{fmt(post.createdAt)}</time>
               {post.title && <span class="text-neutral-600"> &mdash; {post.title}</span>}
             </p>
-            {post.images.length > 12 ? (
+            {post.images.length > 6 ? (
               <div class="overflow-x-auto">
-                <div class="flex w-max gap-px">
+                <div class="mx-auto flex w-max gap-px">
                   {hero && (
                     <img
                       src={hero.src}
@@ -75,7 +103,7 @@ const scrollRows = (images: Images) => {
                 </div>
               </div>
             ) : (
-              <div class="masonry" style={`--n: ${post.images.length}`}>
+              <div class="gallery">
                 {post.images.map((img) => (
                   <img
                     src={img.src}
@@ -83,7 +111,7 @@ const scrollRows = (images: Images) => {
                     height={img.h}
                     loading="lazy"
                     alt=""
-                    class="lightboxable mb-px w-full cursor-zoom-in break-inside-avoid bg-neutral-100 transition-opacity duration-200 hover:opacity-85"
+                    class="lightboxable cursor-zoom-in bg-neutral-100 transition-opacity duration-200 hover:opacity-85"
                   />
                 ))}
               </div>
@@ -94,7 +122,20 @@ const scrollRows = (images: Images) => {
               )}
               <p class="font-hand mt-3 text-3xl text-neutral-700">- Danielle</p>
 
+              
+
 <hr />
+<div class="reactions mt-4 flex flex-wrap justify-center gap-1" data-id={post.id}>
+                {REACTION_EMOJIS.map((e) => (
+                  <button
+                    data-emoji={e}
+                    class="cursor-pointer rounded-full px-2.5 py-1 text-lg transition-colors hover:bg-neutral-200/70"
+                  >
+                    {e}
+                    <span class="align-middle text-xs text-neutral-500">{post.reactions?.[e] || ''}</span>
+                  </button>
+                ))}
+              </div>
               {(post.comments?.length ?? 0) > 0 && (
                 <div class="mt-6 space-y-2 text-center text-sm">
                   {post.comments!.map((c) => (
@@ -142,7 +183,7 @@ const scrollRows = (images: Images) => {
 
     <dialog
       id="lightbox"
-      class="relative m-0 h-dvh max-h-none w-screen max-w-none bg-transparent p-0 select-none backdrop:bg-neutral-950/95"
+      class="relative m-0 h-dvh max-h-none w-screen max-w-none touch-none bg-transparent p-0 select-none backdrop:bg-neutral-950/95"
     >
       <img alt="" draggable="false" class="h-full w-full object-contain p-2 sm:p-6" />
       <button
@@ -150,6 +191,10 @@ const scrollRows = (images: Images) => {
         aria-label="Close"
         class="absolute top-3 right-4 cursor-pointer text-3xl leading-none text-white/70 hover:text-white"
       >&times;</button>
+      <span
+        id="lb-count"
+        class="absolute bottom-3 left-1/2 -translate-x-1/2 text-sm tracking-widest text-white/70"
+      ></span>
     </dialog>
 
     <script>
@@ -157,10 +202,14 @@ const scrollRows = (images: Images) => {
       const full = dialog.querySelector('img')!;
       let group: HTMLImageElement[] = [];
       let idx = 0;
+      let scrollY = 0;
+
+      const count = document.getElementById('lb-count')!;
 
       function show(i: number) {
         idx = (i + group.length) % group.length;
         full.src = group[idx].src;
+        count.textContent = `${idx + 1} / ${group.length}`;
         // preload neighbours so paging feels instant
         for (const n of [idx + 1, idx - 1]) new Image().src = group[(n + group.length) % group.length].src;
       }
@@ -172,6 +221,7 @@ const scrollRows = (images: Images) => {
           img.addEventListener('click', () => {
             group = imgs;
             show(i);
+            scrollY = window.scrollY; // overflow:hidden toggle resets scroll; restore on close
             dialog.showModal();
           }),
         );
@@ -195,7 +245,39 @@ const scrollRows = (images: Images) => {
         else show(e.clientX < innerWidth / 3 ? idx - 1 : idx + 1);
       });
 
-      dialog.addEventListener('close', () => full.removeAttribute('src'));
+      dialog.addEventListener('close', () => {
+        full.removeAttribute('src');
+        window.scrollTo(0, scrollY);
+      });
+
+      // reactions: one per post per browser (localStorage), chosen emoji highlighted
+      for (const box of document.querySelectorAll<HTMLElement>('.reactions')) {
+        const id = box.dataset.id!;
+        const key = `reacted-${id}`;
+        const mark = () => {
+          const chosen = localStorage.getItem(key);
+          if (!chosen) return;
+          for (const b of box.querySelectorAll<HTMLButtonElement>('button')) {
+            b.classList.toggle('bg-neutral-200', b.dataset.emoji === chosen);
+          }
+        };
+        mark();
+        box.addEventListener('click', async (e) => {
+          const btn = (e.target as HTMLElement).closest('button');
+          if (!btn || localStorage.getItem(key)) return;
+          localStorage.setItem(key, btn.dataset.emoji!);
+          mark();
+          const res = await fetch('/api/react', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, emoji: btn.dataset.emoji }),
+          });
+          const counts = await res.json();
+          for (const b of box.querySelectorAll<HTMLButtonElement>('button')) {
+            b.querySelector('span')!.textContent = counts[b.dataset.emoji!] || '';
+          }
+        });
+      }
     </script>
   </body>
 </html>

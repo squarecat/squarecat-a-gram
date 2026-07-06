@@ -19,14 +19,23 @@ body:has(dialog[open]) {
   overflow: hidden;
 }
 
-/* masonry: never more columns than images (--n), else short posts leave dead space right.
-   Width is capped at ~240px per column and centered, so posts with few images keep the
-   same image size as full rows instead of growing to fill the viewport. */
-.masonry {
-  column-gap: 1px;
-  column-count: min(6, var(--n));
-  max-width: calc(min(6, var(--n)) * 240px);
-  margin-inline: auto;
+/* gallery: fixed row height, natural widths — portrait & landscape mix at the same
+   visual size. Rows wrap and center, so small posts sit centered automatically. */
+.gallery {
+  --row: 240px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1px;
+}
+.gallery img {
+  height: var(--row);
+  width: auto;
+  max-width: 100%;
+  object-fit: cover; /* ultra-wide panoramas crop instead of shrinking the row */
+}
+@media (max-width: 640px) {
+  .gallery { --row: 150px; }
 }
 
 hr {

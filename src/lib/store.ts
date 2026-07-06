@@ -10,7 +10,10 @@ export interface Post {
   enteUrl?: string; // kept for re-sync; absent on pre-edit-feature posts
   images: { src: string; w: number; h: number }[];
   comments?: { name: string; text: string; createdAt: string }[];
+  reactions?: Record<string, number>;
 }
+
+export const REACTION_EMOJIS = ['❤️', '😍', '😂', '😮', '😢', '👏'];
 
 // ponytail: JSON file store; move to SQLite only if it ever grows/concurrent-writes.
 const FILE = process.env.DATA_FILE ?? 'data/posts.json';
