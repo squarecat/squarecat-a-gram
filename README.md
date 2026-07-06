@@ -1,4 +1,4 @@
-# travel-feed
+# Squarecat-a-gram
 
 A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
 pasting an album share link + a caption into a password-gated form; the server downloads the
@@ -98,11 +98,11 @@ implementation, including end-to-end decryption of Ente's public albums.
 ```sh
 docker compose up -d          # edit docker-compose.yml env first
 # or:
-docker build -t travel-feed .
+docker build -t squarecat-a-gram .
 docker run -d -p 2987:2987 \
   -e ADMIN_PASSWORD=change-me -e SITE_URL=https://feed.example.com \
   -v ./data:/app/data -v ./media:/app/media \
-  travel-feed
+  squarecat-a-gram
 ```
 
 The app listens on `:2987` and serves everything itself (pages, `/media/*` with immutable
