@@ -1,0 +1,38 @@
+---
+// A single feed media item: photo → <img>; video → poster <img> + play badge, with the
+// mp4 in data-video so the lightbox can play it. `class` carries per-layout sizing.
+interface Props {
+  item: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string };
+  class?: string;
+}
+const { item, class: cls = '' } = Astro.props;
+const isVideo = item.kind === 'video';
+---
+{isVideo ? (
+  <span class:list={['media-video relative inline-block leading-none', cls]}>
+    <img
+      src={item.poster}
+      width={item.w}
+      height={item.h}
+      data-video={item.src}
+      loading="lazy"
+      alt=""
+      class="lightboxable block h-full w-auto cursor-zoom-in bg-neutral-100 object-cover"
+    />
+    <span class="pointer-events-none absolute inset-0 grid place-items-center">
+      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+        <circle cx="23" cy="23" r="23" fill="rgba(0,0,0,0.45)" />
+        <path d="M19 15l13 8-13 8z" fill="#fff" />
+      </svg>
+    </span>
+  </span>
+) : (
+  <img
+    src={item.src}
+    width={item.w}
+    height={item.h}
+    loading="lazy"
+    alt=""
+    class:list={['lightboxable cursor-zoom-in bg-neutral-100', cls]}
+  />
+)}

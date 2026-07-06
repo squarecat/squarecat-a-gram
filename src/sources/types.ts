@@ -1,7 +1,8 @@
 export interface AlbumImage {
   title: string; // original filename (drives HEIC fallback in the publish pipeline)
   takenAt: number; // epoch µs, for ordering
-  download(): Promise<Buffer>; // original image bytes, decrypted/decoded
+  kind: 'image' | 'video';
+  download(): Promise<Buffer>; // original bytes, decrypted/decoded
 }
 
 export interface Source {

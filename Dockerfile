@@ -8,6 +8,7 @@ RUN yarn build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=2987
+RUN apk add --no-cache ffmpeg
 COPY package.json yarn.lock ./
 RUN yarn --frozen-lockfile --production && yarn cache clean
 COPY --from=build /app/dist ./dist

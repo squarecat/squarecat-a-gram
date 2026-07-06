@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import site from '../../site.json';
+import Media from '../components/Media.astro';
 import { readPosts, REACTION_EMOJIS } from '../lib/store';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -90,28 +91,12 @@ const scrollRows = (images: Images) => {
             {post.images.length > 6 ? (
               <div class="overflow-x-auto">
                 <div class="mx-auto flex w-max gap-px">
-                  {hero && (
-                    <img
-                      src={hero.src}
-                      width={hero.w}
-                      height={hero.h}
-                      loading="lazy"
-                      alt=""
-                      class="lightboxable h-[481px] w-auto cursor-zoom-in bg-neutral-100 transition-opacity duration-200 hover:opacity-85"
-                    />
-                  )}
+                  {hero && <Media item={hero} class="h-[481px] w-auto transition-opacity duration-200 hover:opacity-85" />}
                   <div class="flex flex-col gap-px">
                     {rows.map((row) => (
                       <div class="flex gap-px">
                         {row.map((img) => (
-                          <img
-                            src={img.src}
-                            width={img.w}
-                            height={img.h}
-                            loading="lazy"
-                            alt=""
-                            class="lightboxable h-60 w-auto cursor-zoom-in bg-neutral-100 transition-opacity duration-200 hover:opacity-85"
-                          />
+                          <Media item={img} class="h-60 w-auto transition-opacity duration-200 hover:opacity-85" />
                         ))}
                       </div>
                     ))}
@@ -121,14 +106,7 @@ const scrollRows = (images: Images) => {
             ) : (
               <div class="gallery">
                 {post.images.map((img) => (
-                  <img
-                    src={img.src}
-                    width={img.w}
-                    height={img.h}
-                    loading="lazy"
-                    alt=""
-                    class="lightboxable cursor-zoom-in bg-neutral-100 transition-opacity duration-200 hover:opacity-85"
-                  />
+                  <Media item={img} class="transition-opacity duration-200 hover:opacity-85" />
                 ))}
               </div>
             )}
@@ -220,7 +198,14 @@ const scrollRows = (images: Images) => {
       id="lightbox"
       class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none touch-none bg-transparent p-0 select-none backdrop:bg-neutral-950/95"
     >
-      <img alt="" draggable="false" class="h-full w-full object-contain p-2 sm:p-6" />
+      <img id="lb-img" alt="" draggable="false" class="h-full w-full object-contain p-2 sm:p-6" />
+      <video
+        id="lb-vid"
+        controls
+        playsinline
+        hidden
+        class="h-full w-full object-contain p-2 sm:p-6"
+      ></video>
       <button
         id="lb-close"
         aria-label="Close"
@@ -234,7 +219,8 @@ const scrollRows = (images: Images) => {
 
     <script>
       const dialog = document.getElementById('lightbox') as HTMLDialogElement;
-      const full = dialog.querySelector('img')!;
+      const full = document.getElementById('lb-img') as HTMLImageElement;
+      const vid = document.getElementById('lb-vid') as HTMLVideoElement;
       let group: HTMLImageElement[] = [];
       let idx = 0;
       let scrollY = 0;
@@ -249,10 +235,26 @@ const scrollRows = (images: Images) => {
 
       function show(i: number) {
         idx = (i + group.length) % group.length;
-        full.src = group[idx].src;
+        const el = group[idx];
+        const videoSrc = el.dataset.video;
+        vid.pause();
+        if (videoSrc) {
+          full.hidden = true;
+          vid.hidden = false;
+          vid.src = videoSrc;
+          vid.play().catch(() => {}); // autoplay may be blocked; controls still work
+        } else {
+          vid.hidden = true;
+          vid.removeAttribute('src');
+          full.hidden = false;
+          full.src = el.src;
+        }
         count.textContent = `${idx + 1} / ${group.length}`;
-        // preload neighbours so paging feels instant
-        for (const n of [idx + 1, idx - 1]) new Image().src = group[(n + group.length) % group.length].src;
+        // preload neighbouring photos (not videos) so paging feels instant
+        for (const n of [idx + 1, idx - 1]) {
+          const nb = group[(n + group.length) % group.length];
+          if (!nb.dataset.video) new Image().src = nb.src;
+        }
       }
 
       // paging stays within the clicked post
@@ -280,7 +282,8 @@ const scrollRows = (images: Images) => {
       let downX = 0;
       dialog.addEventListener('pointerdown', (e) => (downX = e.clientX));
       dialog.addEventListener('pointerup', (e) => {
-        if ((e.target as HTMLElement).id === 'lb-close') return;
+        const t = e.target as HTMLElement;
+        if (t.id === 'lb-close' || t.closest('video')) return; // let video controls work
         const dx = e.clientX - downX;
         if (dx > 40) show(idx - 1);
         else if (dx < -40) show(idx + 1);
@@ -289,6 +292,8 @@ const scrollRows = (images: Images) => {
 
       dialog.addEventListener('close', () => {
         full.removeAttribute('src');
+        vid.pause();
+        vid.removeAttribute('src');
         window.scrollTo(0, scrollY);
       });
 

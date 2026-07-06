@@ -28,8 +28,12 @@ body:has(dialog[open]) {
   justify-content: center;
   gap: 1px;
 }
-.gallery img {
+/* every item (photo <img> or video <span>) is one row tall; width follows aspect */
+.gallery > * {
   height: var(--row);
+}
+.gallery img {
+  height: 100%;
   width: auto;
   max-width: 100%;
   object-fit: cover; /* ultra-wide panoramas crop instead of shrinking the row */

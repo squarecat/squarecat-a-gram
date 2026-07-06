@@ -161,19 +161,22 @@ export const enteSource: Source = {
     const { token, collectionKey } = parseShareUrl(url);
     await getInfo(token); // throws if expired / downloads disabled
     const files = await listFiles(token);
-    const images: AlbumImage[] = [];
+    const items: AlbumImage[] = [];
     for (const f of files) {
       const fileKey = await decryptFileKey(f, collectionKey);
       const meta = await decryptMetadata(f, fileKey);
-      if (meta.fileType !== 0) continue; // ponytail: images only; skip video/live photo
-      images.push({
+      // fileType 0=image, 1=video, 2=live photo. ponytail: live photos skipped (zip of
+      // image+video) — add later if wanted.
+      if (meta.fileType !== 0 && meta.fileType !== 1) continue;
+      items.push({
         title: meta.title ?? '',
         takenAt: meta.creationTime ?? 0,
+        kind: meta.fileType === 1 ? 'video' : 'image',
         download: () => downloadAndDecryptImage(token, f, fileKey),
       });
     }
-    // order by when the photo was taken, not when it was added to the album
-    return images.sort((a, b) => a.takenAt - b.takenAt);
+    // order by when the photo/video was taken, not when it was added to the album
+    return items.sort((a, b) => a.takenAt - b.takenAt);
   },
 };
 

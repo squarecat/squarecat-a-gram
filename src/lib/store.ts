@@ -9,7 +9,7 @@ export interface Post {
   caption: string;
   createdAt: string; // ISO
   enteUrl?: string; // kept for re-sync; absent on pre-edit-feature posts
-  images: { src: string; w: number; h: number }[];
+  images: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string }[];
   comments?: { name: string; text: string; createdAt: string }[];
   reactions?: Record<string, number>;
 }

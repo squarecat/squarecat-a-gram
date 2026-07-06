@@ -1,11 +1,15 @@
 import 'dotenv/config';
+import { execFile } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { findSource } from '../sources';
+import type { AlbumImage } from '../sources/types';
 import type { Post } from './store';
 
+const run = promisify(execFile);
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
 
 /** 401 Response if the form's password is missing/wrong, null if OK. */
@@ -32,6 +36,60 @@ function toWebp(buf: Buffer) {
 }
 
 /**
+ * Transcode a video to web-safe H.264/AAC MP4 (phones shoot HEVC, which Firefox and older
+ * Chrome can't play) and extract a poster frame. Needs ffmpeg on PATH (in the Docker image).
+ * ponytail: always re-encode + synchronous in the publish request; fine at family scale, a
+ * long 4K clip will be slow — move to a background job if that ever bites.
+ */
+async function videoToMp4(buf: Buffer, dir: string, postId: string, name: string) {
+  const input = join(dir, `.in-${name}`);
+  const posterJpg = join(dir, `.poster-${name}.jpg`);
+  const mp4 = `${name}.mp4`;
+  const poster = `${name}.webp`;
+  await writeFile(input, buf);
+  try {
+    await run('ffmpeg', ['-y', '-i', input,
+      '-vf', "scale='min(1280,iw)':-2", // cap width at 1280, keep even height
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+      '-c:a', 'aac', '-movflags', '+faststart', // faststart = playable while downloading
+      join(dir, mp4)], { maxBuffer: 1 << 26 });
+    await run('ffmpeg', ['-y', '-i', join(dir, mp4), '-frames:v', '1', '-q:v', '3', posterJpg]);
+    const out = await toWebp(await sharp(posterJpg).toBuffer());
+    await writeFile(join(dir, poster), out.data);
+    return {
+      src: `/media/${postId}/${mp4}`,
+      poster: `/media/${postId}/${poster}`,
+      w: out.info.width,
+      h: out.info.height,
+      kind: 'video' as const,
+    };
+  } catch (err: any) {
+    if (err?.code === 'ENOENT') throw new Error('ffmpeg is not installed — required to publish videos');
+    throw new Error(`Video processing failed: ${String(err?.stderr ?? err?.message).slice(-200)}`);
+  } finally {
+    await rm(input, { force: true });
+    await rm(posterJpg, { force: true });
+  }
+}
+
+async function imageToWebp(item: AlbumImage, dir: string, postId: string, name: string) {
+  let buf = await item.download();
+  let out;
+  try {
+    out = await toWebp(buf);
+  } catch (err) {
+    if (!/\.hei[cf]$/i.test(item.title)) throw err;
+    // sharp built without libheif — convert HEIC → JPEG first
+    const convert = (await import('heic-convert')).default;
+    buf = Buffer.from(await convert({ buffer: buf, format: 'JPEG', quality: 0.9 }));
+    out = await toWebp(buf);
+  }
+  const file = `${name}.webp`;
+  await writeFile(join(dir, file), out.data);
+  return { src: `/media/${postId}/${file}`, w: out.info.width, h: out.info.height };
+}
+
+/**
  * Download + decrypt + optimise every image in the album into media/<postId>/,
  * replacing whatever was there. Filenames carry a stamp because /media is served
  * with immutable caching — a re-sync must produce new URLs.
@@ -45,23 +103,15 @@ export async function albumToImages(albumUrl: string, postId: string): Promise<P
 
   const stamp = Date.now().toString(36);
   const images: Post['images'] = [];
-  for (const image of album) {
-    let buf = await image.download();
-    let out;
-    try {
-      out = await toWebp(buf);
-    } catch (err) {
-      if (!/\.hei[cf]$/i.test(image.title)) throw err;
-      // sharp built without libheif — convert HEIC → JPEG first
-      const convert = (await import('heic-convert')).default;
-      buf = Buffer.from(await convert({ buffer: buf, format: 'JPEG', quality: 0.9 }));
-      out = await toWebp(buf);
-    }
-    const name = `${stamp}-${images.length + 1}.webp`;
-    await writeFile(join(dir, name), out.data);
-    images.push({ src: `/media/${postId}/${name}`, w: out.info.width, h: out.info.height });
+  for (const item of album) {
+    const name = `${stamp}-${images.length + 1}`;
+    images.push(
+      item.kind === 'video'
+        ? await videoToMp4(await item.download(), dir, postId, name)
+        : await imageToWebp(item, dir, postId, name),
+    );
   }
 
-  if (!images.length) throw new Error('No images found in that album (videos/live photos are skipped)');
+  if (!images.length) throw new Error('No media found in that album (live photos are skipped)');
   return images;
 }
