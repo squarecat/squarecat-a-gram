@@ -42,6 +42,9 @@ const scrollRows = (images: Images) => {
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/assets/icon-256.png" type="image/png" sizes="256x256" />
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
     <meta property="og:title" content={`${site.name} ${site.subtitle}`} />
     <meta property="og:description" content={ogDescription} />
     <meta property="og:image" content={`${origin}/og.jpg`} />
@@ -55,13 +58,23 @@ const scrollRows = (images: Images) => {
     <link href="https://fonts.googleapis.com/css2?family=Butterfly+Kids&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-white text-neutral-800 antialiased">
-    <header class="py-14 text-center">
+    <header class="py-7 text-center">
       <img src="/assets/icon-256.png" alt="" class="h-16 w-16 mx-auto" />
       <h1 class="font-hand flex items-center justify-center gap-4 text-6xl text-neutral-900">
         {site.name}: {site.subtitle}
       </h1>
       <p class="mt-2">{site.tagline}</p>
     </header>
+
+    {posts.length > 0 && (
+      <div id="notify" class="mb-12 text-center opacity-0 h-20px">
+        <button
+          id="notify-btn"
+          class="cursor-pointer rounded-full border border-neutral-300 px-5 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
+        ></button>
+        <p id="notify-msg" class="mt-2 text-sm text-neutral-400"></p>
+      </div>
+    )}
 
     <main class="space-y-24 pb-24">
       {posts.length === 0 && <p class="text-center text-neutral-400">Nothing here yet.</p>}
@@ -307,6 +320,82 @@ const scrollRows = (images: Images) => {
           }
         });
       }
+
+      // "Get notified" — web push, with per-platform install handling
+      (async () => {
+        const wrap = document.getElementById('notify');
+        const btn = document.getElementById('notify-btn') as HTMLButtonElement | null;
+        const msg = document.getElementById('notify-msg');
+        if (!wrap || !btn || !msg) return; // no posts yet
+        const show = (label: string, note = '') => {
+          btn.textContent = label;
+          btn.hidden = !label;
+          msg.textContent = note;
+          wrap.classList.remove('opacity-0');
+        };
+
+        const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        if (!supported) return; // leave hidden
+        const keyRes = await fetch('/api/vapid-key');
+        if (keyRes.status !== 200) return; // push not configured server-side → stay hidden
+        const vapidKey = (await keyRes.text()).trim();
+
+        const urlB64ToUint8Array = (b64: string) => {
+          const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+          const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+          return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+        };
+        const appKey = urlB64ToUint8Array(vapidKey);
+        const sameKey = (a: ArrayBuffer | null) =>
+          !!a && new Uint8Array(a).every((b, i) => b === appKey[i]) && a.byteLength === appKey.length;
+
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          if (sameKey(existing.options.applicationServerKey)) {
+            show('', '🔔 You’ll be notified of new posts');
+            return;
+          }
+          // subscription was made with a different VAPID key (server keys changed) —
+          // Chrome won't let us re-subscribe with a new key until this one is gone
+          await existing.unsubscribe();
+        }
+
+        const standalone =
+          window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+        const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+        if (isIOS && !standalone) {
+          // iOS Safari has no in-browser install/permission API
+          show('', 'To get notified on iPhone: tap Share, then “Add to Home Screen”.');
+          return;
+        }
+
+        const subscribe = async () => {
+          show('Enabling…');
+          if ((await Notification.requestPermission()) !== 'granted') {
+            show('', 'Notifications are blocked — enable them in your browser settings.');
+            return;
+          }
+          try {
+            const sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: appKey,
+            });
+            await fetch('/api/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sub),
+            });
+            show('', '🔔 You’ll be notified of new posts');
+          } catch (err) {
+            console.error('push subscribe failed', err);
+            show('Try again', 'Couldn’t enable notifications — check your connection and retry.');
+          }
+        };
+
+        show('🔔 Get notified of new posts');
+        btn.addEventListener('click', subscribe);
+      })();
     </script>
   </body>
 </html>

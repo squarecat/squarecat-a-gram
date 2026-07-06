@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { albumToImages, requirePassword } from '../../lib/publish';
-import { addPost } from '../../lib/store';
+import { addPost, type Post } from '../../lib/store';
+import { notifyNewPost } from '../../lib/push';
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const form = await request.formData();
@@ -17,7 +18,9 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     const images = await albumToImages(enteUrl, id);
     // noon UTC so the date can't shift across timezones
     const createdAt = date ? new Date(`${date}T12:00:00Z`).toISOString() : new Date().toISOString();
-    await addPost({ id, title, author, caption, createdAt, enteUrl, images });
+    const post: Post = { id, title, author, caption, createdAt, enteUrl, images };
+    await addPost(post);
+    await notifyNewPost(post).catch(() => {}); // never let a push failure break publishing
     return redirect('/', 303);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

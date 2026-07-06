@@ -3,10 +3,9 @@ services:
     build: .
     ports:
       - '2987:2987'
-    environment:
-      ADMIN_PASSWORD: change-me
-      SITE_URL: https://feed.example.com
-      # ENTE_API_BASE: https://api.ente.io
+    # config + secrets come from .env at runtime (never baked into the image — .env is
+    # gitignored + dockerignored). Copy .env.example to .env and fill it in.
+    env_file: .env
     volumes:
       # bind-mounted dirs must be writable by uid 1000 (the container's node user)
       - ./data:/app/data

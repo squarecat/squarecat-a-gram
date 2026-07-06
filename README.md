@@ -4,7 +4,7 @@ A tiny self-hosted photo blog fed by shared photo albums. The author publishes a
 pasting an album share link + a caption into a password-gated form; the server downloads the
 photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
 a fully public feed of masonry/scroller photo posts with comments and emoji reactions. No
-database — posts live in a JSON file.
+database — posts live in a JSON file. Optional web push notifies subscribers of new posts.
 
 <img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
 
@@ -54,8 +54,10 @@ A `.env` file in the working directory is loaded automatically (dotenv); already
 |---|---|---|
 | `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` forms to publish/edit/delete |
 | `SITE_URL` | *(request origin)* | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | *(unset — push disabled)* | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
 | `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts) |
 | `DATA_FILE` | `data/posts.json` | Post store |
+| `SUBS_FILE` | `data/subscriptions.json` | Push subscription store |
 | `MEDIA_DIR` | `media` | Optimised images, written at publish time |
 | `HOST` / `PORT` | `0.0.0.0` / `2987` | Node server bind (`yarn start` sets these) |
 
@@ -100,14 +102,17 @@ implementation, including end-to-end decryption of Ente's public albums.
 ## Deploy (Docker)
 
 ```sh
-docker compose up -d          # edit docker-compose.yml env first
-# or:
+cp .env.example .env          # fill in ADMIN_PASSWORD, SITE_URL, VAPID keys, …
+docker compose up -d          # reads .env at runtime
+# or plain docker:
 docker build -t squarecat-a-gram .
-docker run -d -p 2987:2987 \
-  -e ADMIN_PASSWORD=change-me -e SITE_URL=https://feed.example.com \
+docker run -d -p 2987:2987 --env-file .env \
   -v ./data:/app/data -v ./media:/app/media \
   squarecat-a-gram
 ```
+
+`.env` is gitignored and dockerignored, so secrets are injected at runtime and never baked
+into the image.
 
 The app listens on `:2987` and serves everything itself (pages, `/media/*` with immutable
 cache headers, the admin). Put whatever TLS/proxy you like in front — one note if you do:
