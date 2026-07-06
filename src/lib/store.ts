@@ -27,15 +27,34 @@ export async function readPosts(): Promise<Post[]> {
   }
 }
 
-export async function writePosts(posts: Post[]): Promise<void> {
+async function writePosts(posts: Post[]): Promise<void> {
   await mkdir(dirname(FILE), { recursive: true });
   const tmp = `${FILE}.tmp`;
   await writeFile(tmp, JSON.stringify(posts, null, 2));
   await rename(tmp, FILE); // atomic write
 }
 
-export async function addPost(post: Post): Promise<void> {
-  const posts = await readPosts();
-  posts.push(post);
-  await writePosts(posts);
+// ponytail: in-process promise-chain mutex — fine while this is a single Node process.
+let queue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Serialised read-modify-write: `fn` mutates the array in place; it is always
+ * written back afterwards. Concurrent callers queue up instead of clobbering
+ * each other's changes. Keep `fn` fast — slow work (downloads) goes outside.
+ */
+export function updatePosts<T>(fn: (posts: Post[]) => T | Promise<T>): Promise<T> {
+  const run = queue.then(async () => {
+    const posts = await readPosts();
+    const result = await fn(posts);
+    await writePosts(posts);
+    return result;
+  });
+  queue = run.catch(() => {});
+  return run;
+}
+
+export function addPost(post: Post): Promise<void> {
+  return updatePosts((posts) => {
+    posts.push(post);
+  });
 }

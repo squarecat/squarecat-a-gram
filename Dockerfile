@@ -12,6 +12,8 @@ COPY package.json yarn.lock ./
 RUN yarn --frozen-lockfile --production && yarn cache clean
 COPY --from=build /app/dist ./dist
 COPY fonts ./fonts
+RUN mkdir -p data media && chown node:node data media
+USER node
 EXPOSE 2987
 VOLUME ["/app/data", "/app/media"]
 CMD ["node", "dist/server/entry.mjs"]

@@ -8,6 +8,7 @@ services:
       SITE_URL: https://feed.example.com
       # ENTE_API_BASE: https://api.ente.io
     volumes:
+      # bind-mounted dirs must be writable by uid 1000 (the container's node user)
       - ./data:/app/data
       - ./media:/app/media
     restart: unless-stopped

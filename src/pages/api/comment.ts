@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { readPosts, writePosts } from '../../lib/store';
+import { updatePosts } from '../../lib/store';
 
 // Public endpoint — no password. Honeypot + length caps as the spam gate.
 // ponytail: no rate limiting; add per-IP throttling if spam ever gets past the honeypot.
@@ -14,11 +14,16 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return new Response('Name and comment are both required.', { status: 400 });
   }
 
-  const posts = await readPosts();
-  const post = posts.find((p) => p.id === id);
-  if (!post) return new Response('Post not found', { status: 404 });
-
-  (post.comments ??= []).push({ name, text, createdAt: new Date().toISOString() });
-  await writePosts(posts);
+  const fail = await updatePosts((posts) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return new Response('Post not found', { status: 404 });
+    if ((post.comments?.length ?? 0) >= 500) {
+      // hard cap so scripted spam can't grow posts.json without bound
+      return new Response('This post has reached its comment limit.', { status: 429 });
+    }
+    (post.comments ??= []).push({ name, text, createdAt: new Date().toISOString() });
+    return null;
+  });
+  if (fail) return fail;
   return redirect(`/#post-${id}`, 303);
 };

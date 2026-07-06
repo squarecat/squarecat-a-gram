@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { requirePassword } from '../../lib/publish';
-import { readPosts, writePosts } from '../../lib/store';
+import { updatePosts } from '../../lib/store';
 
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
 
@@ -13,10 +13,15 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   if (gate) return gate;
 
   const id = String(form.get('id') ?? '');
-  const posts = await readPosts();
-  if (!posts.some((p) => p.id === id)) return new Response('Post not found', { status: 404 });
+  const found = await updatePosts((posts) => {
+    const i = posts.findIndex((p) => p.id === id);
+    if (i < 0) return false;
+    posts.splice(i, 1);
+    return true;
+  });
+  if (!found) return new Response('Post not found', { status: 404 });
 
-  await writePosts(posts.filter((p) => p.id !== id));
+  // id is verified against the store above, so this can't escape MEDIA_DIR
   await rm(join(MEDIA_DIR, id), { recursive: true, force: true });
   return redirect('/admin', 303);
 };
