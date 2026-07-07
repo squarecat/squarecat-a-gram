@@ -2,6 +2,8 @@ export interface AlbumImage {
   title: string; // original filename (drives HEIC fallback in the publish pipeline)
   takenAt: number; // epoch µs, for ordering
   kind: 'image' | 'video';
+  lat?: number; // capture location, if the source has it (used for the globe pin)
+  lng?: number;
   download(): Promise<Buffer>; // original bytes, decrypted/decoded
 }
 

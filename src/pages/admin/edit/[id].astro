@@ -3,6 +3,7 @@
 import '../../../styles/global.css';
 import site from '../../../../site.json';
 import { readPosts } from '../../../lib/store';
+import { COUNTRIES } from '../../../lib/countries';
 
 const post = (await readPosts()).find((p) => p.id === Astro.params.id);
 if (!post) return new Response('Post not found', { status: 404 });
@@ -64,6 +65,16 @@ const fmt = (iso: string) =>
             placeholder={post.enteUrl ? undefined : 'Not stored for this post — paste it to re-sync'}
             class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
           />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Country <span class="font-normal text-neutral-400">(draws the journey globe)</span></span>
+          <select
+            name="country"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          >
+            <option value="">—</option>
+            {COUNTRIES.map((ct) => <option value={ct.code} selected={ct.code === post.country}>{ct.name}</option>)}
+          </select>
         </label>
         <label class="block">
           <span class="text-sm font-medium">Posted by</span>

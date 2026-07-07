@@ -15,6 +15,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "astro": "^5",
     "bs58": "^6",
+    "d3-geo": "^3.1.1",
     "dotenv": "^17.4.2",
     "heic-convert": "^2",
     "libsodium-wrappers": "^0.7",
@@ -24,6 +25,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/d3-geo": "^3.1.0",
     "@types/libsodium-wrappers": "^0.7",
     "@types/node": "^22",
     "@types/web-push": "^3.6.4"

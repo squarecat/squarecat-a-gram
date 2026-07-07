@@ -5,6 +5,9 @@ import { dirname } from 'node:path';
 export interface Post {
   id: string;
   title?: string; // short location label, e.g. "Bangkok"
+  country?: string; // ISO code; globe fallback when the album has no GPS
+  lat?: number; // globe pin from the first photo's GPS (rounded ~11km for privacy)
+  lng?: number;
   author?: string; // signature under the caption; falls back to site.json defaultAuthor
   caption: string;
   createdAt: string; // ISO

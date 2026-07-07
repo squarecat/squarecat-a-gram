@@ -2,7 +2,9 @@
 import '../styles/global.css';
 import site from '../../site.json';
 import Media from '../components/Media.astro';
+import Globe from '../components/Globe.astro';
 import { readPosts, REACTION_EMOJIS } from '../lib/store';
+import { findCountry } from '../lib/countries';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 const fmt = (iso: string) =>
@@ -82,8 +84,12 @@ const scrollRows = (images: Images) => {
       {
         posts.map((post) => {
           const { hero, rows } = scrollRows(post.images);
+          // globe pin: the album's GPS if we have it, else the picked country's centroid
+          const place =
+            post.lat != null && post.lng != null ? { lat: post.lat, lng: post.lng } : findCountry(post.country);
           return (
           <article id={`post-${post.id}`}>
+            {place && <div class="mb-2"><Globe point={place} /></div>}
             <p class="mb-3 text-center text-xs tracking-[0.2em] text-neutral-400 uppercase">
               <time datetime={post.createdAt}>{fmt(post.createdAt)}</time>
               {post.title && <span class="text-neutral-600"> &mdash; {post.title}</span>}

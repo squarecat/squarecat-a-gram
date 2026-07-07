@@ -1,0 +1,47 @@
+---
+// A cute mini globe centred on the post's location, with a single pin.
+// Server-rendered SVG via d3-geo (geoPath returns a `d` string in Node) — zero client JS.
+import { geoOrthographic, geoPath } from 'd3-geo';
+import land from '../geo/land.geo.json';
+
+const { point } = Astro.props as { point: { lat: number; lng: number } };
+
+const SIZE = 90;
+const R = SIZE / 2 - 4;
+const c = SIZE / 2;
+
+const projection = geoOrthographic()
+  .scale(R)
+  .translate([c, c])
+  .rotate([-point.lng, -point.lat])
+  .clipAngle(90);
+const path = geoPath(projection);
+
+const landPath = path(land as any);
+const p = projection([point.lng, point.lat]);
+
+// a teardrop pin whose tip sits at (x,y); s scales it about the tip
+const pin = (pt: [number, number] | null, color: string, s = 2) =>
+  pt
+    ? `<g transform="translate(${pt[0]} ${pt[1]}) scale(${s})"><path d="M0 0 c-3.5 -4 -5 -6 -5 -8.5 a5 5 0 0 1 10 0 c0 2.5 -1.5 4.5 -5 8.5 z" fill="${color}" stroke="#fff" stroke-width="0.7"/><circle cx="0" cy="-8.5" r="1.8" fill="#fff"/></g>`
+    : '';
+---
+
+<svg
+  viewBox={`0 0 ${SIZE} ${SIZE}`}
+  width={SIZE}
+  height={SIZE}
+  class="mx-auto"
+  role="img"
+  aria-label="Location map"
+>
+  <defs>
+    <radialGradient id="ocean" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#eaf3fb" />
+      <stop offset="100%" stop-color="#cfe0ee" />
+    </radialGradient>
+  </defs>
+  <circle cx={c} cy={c} r={R} fill="url(#ocean)" stroke="rgb(150 180 205)" stroke-width="0.3" />
+  {landPath && <path d={landPath} fill="#c9d6b8" stroke="rgb(178 193 163)" stroke-width="0.5" />}
+  <Fragment set:html={pin(p, '#d1495b')} />
+</svg>

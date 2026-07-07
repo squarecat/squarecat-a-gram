@@ -28,6 +28,8 @@ export interface FileMetadata {
   fileType: number; // 0=image, 1=video, 2=live photo
   title: string;
   creationTime?: number; // epoch µs
+  latitude?: number;
+  longitude?: number;
 }
 
 // Every encrypted field is standard base64 — only the URL fragment is base58.
@@ -172,6 +174,8 @@ export const enteSource: Source = {
         title: meta.title ?? '',
         takenAt: meta.creationTime ?? 0,
         kind: meta.fileType === 1 ? 'video' : 'image',
+        lat: typeof meta.latitude === 'number' ? meta.latitude : undefined,
+        lng: typeof meta.longitude === 'number' ? meta.longitude : undefined,
         download: () => downloadAndDecryptImage(token, f, fileKey),
       });
     }

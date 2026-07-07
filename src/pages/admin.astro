@@ -3,6 +3,7 @@
 import '../styles/global.css';
 import site from '../../site.json';
 import { readPosts } from '../lib/store';
+import { COUNTRIES } from '../lib/countries';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 const fmt = (iso: string) =>
@@ -40,6 +41,16 @@ const fmt = (iso: string) =>
             maxlength="50"
             class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
           />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Country <span class="font-normal text-neutral-400">(optional — draws the journey globe)</span></span>
+          <select
+            name="country"
+            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+          >
+            <option value="">—</option>
+            {COUNTRIES.map((ct) => <option value={ct.code}>{ct.name}</option>)}
+          </select>
         </label>
         <label class="block">
           <span class="text-sm font-medium">Date <span class="font-normal text-neutral-400">(optional — for backdating; empty = today)</span></span>

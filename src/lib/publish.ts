@@ -94,7 +94,12 @@ async function imageToWebp(item: AlbumImage, dir: string, postId: string, name: 
  * replacing whatever was there. Filenames carry a stamp because /media is served
  * with immutable caching — a re-sync must produce new URLs.
  */
-export async function albumToImages(albumUrl: string, postId: string): Promise<Post['images']> {
+export interface AlbumResult {
+  images: Post['images'];
+  location?: { lat: number; lng: number }; // first photo's GPS, rounded ~11km for privacy
+}
+
+export async function albumToImages(albumUrl: string, postId: string): Promise<AlbumResult> {
   const album = await findSource(albumUrl).list(albumUrl); // sorted by takenAt
 
   const dir = join(MEDIA_DIR, postId);
@@ -113,5 +118,11 @@ export async function albumToImages(albumUrl: string, postId: string): Promise<P
   }
 
   if (!images.length) throw new Error('No media found in that album (live photos are skipped)');
-  return images;
+
+  // globe pin from the earliest photo that has GPS; round to ~11km so the exact spot
+  // (e.g. a home) is never stored or shown — consistent with stripping EXIF off the images
+  const geo = album.find((i) => typeof i.lat === 'number' && typeof i.lng === 'number');
+  const round = (n: number) => Math.round(n * 10) / 10;
+  const location = geo ? { lat: round(geo.lat!), lng: round(geo.lng!) } : undefined;
+  return { images, location };
 }
