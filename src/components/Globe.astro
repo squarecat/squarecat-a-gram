@@ -1,6 +1,8 @@
 ---
 // A cute mini globe centred on the post's location, with a single pin.
 // Server-rendered SVG via d3-geo (geoPath returns a `d` string in Node) — zero client JS.
+// On hover the land layer zooms toward the pin (which is always at the centre, since the
+// projection is rotated onto the point); the pin sits in a separate layer so it stays put.
 import { geoOrthographic, geoPath } from 'd3-geo';
 import land from '../geo/land.geo.json';
 
@@ -18,7 +20,7 @@ const projection = geoOrthographic()
 const path = geoPath(projection);
 
 const landPath = path(land as any);
-const p = projection([point.lng, point.lat]);
+const p = projection([point.lng, point.lat]); // == [c, c]
 
 // a teardrop pin whose tip sits at (x,y); s scales it about the tip
 const pin = (pt: [number, number] | null, color: string, s = 2) =>
@@ -27,21 +29,60 @@ const pin = (pt: [number, number] | null, color: string, s = 2) =>
     : '';
 ---
 
-<svg
-  viewBox={`0 0 ${SIZE} ${SIZE}`}
-  width={SIZE}
-  height={SIZE}
-  class="mx-auto"
-  role="img"
-  aria-label="Location map"
->
-  <defs>
-    <radialGradient id="ocean" cx="38%" cy="32%" r="75%">
-      <stop offset="0%" stop-color="#eaf3fb" />
-      <stop offset="100%" stop-color="#cfe0ee" />
-    </radialGradient>
-  </defs>
-  <circle cx={c} cy={c} r={R} fill="url(#ocean)" stroke="rgb(150 180 205)" stroke-width="0.3" />
-  {landPath && <path d={landPath} fill="#c9d6b8" stroke="rgb(178 193 163)" stroke-width="0.5" />}
-  <Fragment set:html={pin(p, '#d1495b')} />
-</svg>
+<div class="globe" role="img" aria-label="Location map">
+  <svg class="ball" viewBox={`0 0 ${SIZE} ${SIZE}`}>
+    <defs>
+      <radialGradient id="ocean" cx="38%" cy="32%" r="75%">
+        <stop offset="0%" stop-color="#eaf3fb" />
+        <stop offset="100%" stop-color="#cfe0ee" />
+      </radialGradient>
+    </defs>
+    <circle cx={c} cy={c} r={R} fill="url(#ocean)" stroke="rgb(150 180 205)" stroke-width="0.3" />
+    {landPath && <path d={landPath} fill="#c9d6b8" stroke="rgb(178 193 163)" stroke-width="0.5" />}
+  </svg>
+  <svg class="pin" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
+    <Fragment set:html={pin(p, '#d1495b')} />
+  </svg>
+</div>
+
+<style>
+  .globe {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 50%;
+    will-change: width;
+    /* circle → map card as it zooms */
+    transition:
+      width 0.6s ease,
+      border-radius 0.6s ease,
+      box-shadow 0.6s ease;
+  }
+  .globe svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .ball {
+    transition: transform 0.6s ease;
+  }
+  .globe:hover {
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgb(0 0 0 / 0.05);
+    width: 180px;
+  }
+  .globe:hover .ball {
+    transform: scale(4);
+  }
+
+  .globe path { 
+    transition:
+      stroke-width 0.6s ease;
+  }
+  .globe:hover path {
+    stroke-width: 0.2;
+  }
+</style>

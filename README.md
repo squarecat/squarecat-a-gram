@@ -3,8 +3,9 @@
 A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
 pasting an album share link + a caption into a password-gated form; the server downloads the
 photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
-a fully public feed of masonry/scroller photo posts with comments and emoji reactions. No
-database — posts live in a JSON file. Optional web push notifies subscribers of new posts.
+a fully public feed of masonry/scroller photo (and video) posts with comments, emoji reactions,
+and a little globe pinned to where each post was taken. No database — posts live in a JSON file.
+Optional web push notifies subscribers of new posts.
 
 <img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
 
@@ -68,6 +69,21 @@ A `.env` file in the working directory is loaded automatically (dotenv); already
 yarn selfcheck                      # crypto vectors (base58 / SecretBox / SecretStream)
 yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
 ```
+
+## Location globe
+
+Each post shows a small globe pinned to where it was taken. The pin location is resolved in
+this order:
+
+1. **The first photo's GPS**, read from the album metadata at publish time — automatic, nothing
+   to fill in. The coordinate is **rounded to ~11 km before it's stored**, so the exact spot
+   (e.g. a home) is never saved or shown — consistent with stripping EXIF off the public images.
+2. **A country picker** (optional field on the compose/edit form) — the fallback when the photos
+   have no GPS (screenshots, cameras with location off).
+
+If neither is available, the post simply has no globe. The globe is server-rendered SVG with
+real continents (via `d3-geo` + a bundled Natural Earth land file in `src/geo/`) — no client JS,
+no map tiles, no network calls. Country centroids live in `src/geo/countries.json`.
 
 ## Writing a photo source
 
