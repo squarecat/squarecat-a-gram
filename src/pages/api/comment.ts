@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { updatePosts } from '../../lib/store';
+import { notifyComment } from '../../lib/telegram';
 
 // Public endpoint — no password. Honeypot + length caps as the spam gate.
 // ponytail: no rate limiting; add per-IP throttling if spam ever gets past the honeypot.
@@ -14,6 +15,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return new Response('Name and comment are both required.', { status: 400 });
   }
 
+  let label = '';
   const fail = await updatePosts((posts) => {
     const post = posts.find((p) => p.id === id);
     if (!post) return new Response('Post not found', { status: 404 });
@@ -22,8 +24,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       return new Response('This post has reached its comment limit.', { status: 429 });
     }
     (post.comments ??= []).push({ name, text, createdAt: new Date().toISOString() });
+    label = post.title || post.caption || '';
     return null;
   });
   if (fail) return fail;
+  notifyComment({ postId: id, postLabel: label, name, text }).catch(() => {});
   return redirect(`/#post-${id}`, 303);
 };

@@ -55,6 +55,7 @@ A `.env` file in the working directory is loaded automatically (dotenv); already
 | `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` forms to publish/edit/delete |
 | `SITE_URL` | *(request origin)* | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | *(unset — push disabled)* | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | *(unset — off)* | Ping a Telegram chat on each new comment. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups). |
 | `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts) |
 | `DATA_FILE` | `data/posts.json` | Post store |
 | `SUBS_FILE` | `data/subscriptions.json` | Push subscription store |
