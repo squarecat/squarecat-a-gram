@@ -3,7 +3,7 @@ import '../styles/global.css';
 import site from '../../site.json';
 import Media from '../components/Media.astro';
 import Globe from '../components/Globe.astro';
-import { readPosts, REACTION_EMOJIS } from '../lib/store';
+import { readPosts, REACTION_EMOJIS, REACTION_EMOJIS_REPLY } from '../lib/store';
 import { findCountry } from '../lib/countries';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -67,6 +67,7 @@ const scrollRows = (images: Images) => {
         {site.name}: {site.subtitle}
       </h1>
       <p class="mt-2">{site.tagline}</p>
+      <p class="mt-5 "><a href="/about" class="underline text-neutral-500 hover:text-neutral-900">About us</a></p>
     </header>
 
     {posts.length > 0 && (
@@ -116,7 +117,7 @@ const scrollRows = (images: Images) => {
                 ))}
               </div>
             )}
-            <div class="mx-auto mt-6 max-w-2xl px-4 text-center">
+            <div class="mx-auto mt-6 max-w-2xl px-4">
               {post.caption && (
                 <p class="whitespace-pre-wrap text-[17px] leading-relaxed text-neutral-700">{post.caption}</p>
               )}
@@ -125,7 +126,7 @@ const scrollRows = (images: Images) => {
               
 
 <hr />
-<div class="reactions mt-4 flex flex-wrap justify-center gap-1" data-id={post.id}>
+<div class="reactions mt-4 flex flex-wrap justify-start gap-1 ml-[-8px]" data-id={post.id}>
                 {REACTION_EMOJIS.map((e) => (
                   <button
                     data-emoji={e}
@@ -137,22 +138,78 @@ const scrollRows = (images: Images) => {
                 ))}
               </div>
               {(post.comments?.length ?? 0) > 0 && (
-                <div class="mt-6 space-y-2 text-center text-sm">
+                <div class="mt-6 space-y-3 text-left text-sm">
                   {post.comments!.map((c) => (
-                    <p>
-                      <span class="font-semibold text-neutral-800">{c.name} said:</span>{' '}
-                      <span class="whitespace-pre-wrap text-neutral-600">{c.text}</span>
-                    </p>
+                    <div class="comment group relative" data-post={post.id} data-key={c.createdAt}>
+                      <div class="react-bubble absolute bottom-full left-2 z-10 hidden items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-1.5 py-1 shadow-lg">
+                        {REACTION_EMOJIS_REPLY.map((e) => (
+                          <button type="button" data-emoji={e} class="cursor-pointer rounded-full px-1 text-lg leading-none transition-transform hover:scale-125">
+                            {e}
+                          </button>
+                        ))}
+                        <button type="button" class="bubble-reply ml-0.5 cursor-pointer rounded-full px-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100">
+                          Reply
+                        </button>
+                      </div>
+                      <p class="comment-text cursor-pointer hover:text-neutral-950">
+                        <span class="font-semibold text-neutral-800">{c.name} said:</span>{' '}
+                        <span class="whitespace-pre-wrap text-neutral-600">{c.text}</span>
+                      </p>
+                      <p class="creaction-summary mt-0.5 flex gap-2 text-xs text-neutral-400" hidden={!c.reactions}>
+                        {c.reactions &&
+                          Object.entries(c.reactions).map(([e, n]) => (
+                            <span>
+                              {e} {n}
+                            </span>
+                          ))}
+                      </p>
+                      {c.replies?.map((r) => (
+                        <p class="mt-1 ml-4 border-l-2 border-neutral-200 pl-3">
+                          <span class="font-semibold text-neutral-800">{r.name}:</span>{' '}
+                          <span class="whitespace-pre-wrap text-neutral-600">{r.text}</span>
+                        </p>
+                      ))}
+                      <form method="post" action="/api/reply" class="reply-form mt-2 ml-4 hidden space-y-2">
+                          <input type="hidden" name="id" value={post.id} />
+                          <input type="hidden" name="commentId" value={c.createdAt} />
+                          <input type="hidden" name="authorId" />
+                          <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" />
+                          <input
+                            name="name"
+                            required
+                            maxlength="50"
+                            placeholder="Your name"
+                            class="block w-full rounded-lg border border-neutral-300 px-3 py-1.5 focus:border-neutral-500 focus:outline-none"
+                          />
+                          <textarea
+                            name="text"
+                            required
+                            maxlength="1000"
+                            rows="2"
+                            placeholder={`Reply to ${c.name}…`}
+                            class="block w-full rounded-lg border border-neutral-300 px-3 py-1.5 focus:border-neutral-500 focus:outline-none"
+                          ></textarea>
+                          <div class="flex gap-2">
+                            <button class="cursor-pointer rounded-lg bg-neutral-900 px-4 py-1.5 font-medium text-white hover:bg-neutral-700">
+                              Reply
+                            </button>
+                            <button type="button" class="reply-cancel cursor-pointer rounded-lg px-4 py-1.5 font-medium text-neutral-500 hover:bg-neutral-100">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                    </div>
                   ))}
                 </div>
               )}
               
               <details class="mt-4 text-left text-sm">
-                <summary class="cursor-pointer text-neutral-400 text-center select-none hover:text-neutral-600">
+                <summary class="cursor-pointer text-neutral-400 select-none hover:text-neutral-600">
                   Leave a comment
                 </summary>
                 <form method="post" action="/api/comment" class="mt-3 space-y-2">
                   <input type="hidden" name="id" value={post.id} />
+                  <input type="hidden" name="authorId" />
                   <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" />
                   <input
                     name="name"
@@ -169,9 +226,14 @@ const scrollRows = (images: Images) => {
                     placeholder="Say something nice"
                     class="block w-full rounded-lg border border-neutral-300 px-3 py-1.5 focus:border-neutral-500 focus:outline-none"
                   ></textarea>
-                  <button class="cursor-pointer rounded-lg bg-neutral-900 px-4 py-1.5 font-medium text-white hover:bg-neutral-700">
-                    Post comment
-                  </button>
+                  <div class="flex gap-2">
+                    <button class="cursor-pointer rounded-lg bg-neutral-900 px-4 py-1.5 font-medium text-white hover:bg-neutral-700">
+                      Post comment
+                    </button>
+                    <button type="button" class="comment-cancel cursor-pointer rounded-lg px-4 py-1.5 font-medium text-neutral-500 hover:bg-neutral-100">
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               </details>
             </div>
@@ -182,6 +244,7 @@ const scrollRows = (images: Images) => {
     </main>
 
     <footer class="pb-10 text-center text-sm text-neutral-400">
+      
       <p style="line-height: 0.1em;">made with</p>
       <p><a
         href="https://github.com/squarecat/squarecat-a-gram"
@@ -339,19 +402,109 @@ const scrollRows = (images: Images) => {
         mark();
         box.addEventListener('click', async (e) => {
           const btn = (e.target as HTMLElement).closest('button');
-          if (!btn || localStorage.getItem(key)) return;
-          localStorage.setItem(key, btn.dataset.emoji!);
+          if (!btn) return;
+          const emoji = btn.dataset.emoji!;
+          const prev = localStorage.getItem(key);
+          if (prev === emoji) return; // already reacted with this one
+          localStorage.setItem(key, emoji);
           mark();
           const res = await fetch('/api/react', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, emoji: btn.dataset.emoji }),
+            body: JSON.stringify({ id, emoji, prev }),
           });
           const counts = await res.json();
           for (const b of box.querySelectorAll<HTMLButtonElement>('button')) {
             b.querySelector('span')!.textContent = counts[b.dataset.emoji!] || '';
           }
         });
+      }
+
+      // stable per-browser identity: remembers the name and ties comments to the same person
+      // (and to their push subscription) without relying on the name, which can collide
+      let commenterId = localStorage.getItem('commenter-id');
+      if (!commenterId) {
+        commenterId = crypto.randomUUID();
+        localStorage.setItem('commenter-id', commenterId);
+      }
+      {
+        const saved = localStorage.getItem('commenter-name');
+        const forms = document.querySelectorAll<HTMLFormElement>(
+          'form[action="/api/comment"], form[action="/api/reply"]',
+        );
+        for (const form of forms) {
+          const nameEl = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+          form.querySelector<HTMLInputElement>('input[name="authorId"]')!.value = commenterId!;
+          if (saved) nameEl.value = saved;
+          form.addEventListener('submit', () => localStorage.setItem('commenter-name', nameEl.value.trim()));
+        }
+      }
+
+      // comment reaction bubble (hover on desktop, tap on touch) + a reply button in it
+      for (const comment of document.querySelectorAll<HTMLElement>('.comment')) {
+        const bubble = comment.querySelector<HTMLElement>('.react-bubble')!;
+        const summary = comment.querySelector<HTMLElement>('.creaction-summary')!;
+        const postId = comment.dataset.post!;
+        const key = comment.dataset.key!;
+        const lsKey = `creacted-${postId}-${key}`;
+        const show = () => {
+          bubble.classList.remove('hidden');
+          bubble.classList.add('flex');
+        };
+        const hide = () => {
+          bubble.classList.add('hidden');
+          bubble.classList.remove('flex');
+        };
+
+        comment.addEventListener('mouseenter', show);
+        comment.addEventListener('mouseleave', hide);
+        comment.querySelector('.comment-text')!.addEventListener('click', (e) => {
+          e.stopPropagation();
+          bubble.classList.contains('hidden') ? show() : hide();
+        });
+
+        for (const btn of bubble.querySelectorAll<HTMLButtonElement>('[data-emoji]')) {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            hide();
+            const emoji = btn.dataset.emoji!;
+            const prev = localStorage.getItem(lsKey);
+            if (prev === emoji) return; // already reacted with this one
+            localStorage.setItem(lsKey, emoji);
+            const res = await fetch('/api/comment-react', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: postId, key, emoji, prev }),
+            });
+            if (!res.ok) return;
+            const counts = await res.json();
+            const entries = Object.entries(counts);
+            summary.hidden = entries.length === 0;
+            summary.innerHTML = entries.map(([em, n]) => `<span>${em} ${n}</span>`).join('');
+          });
+        }
+
+        comment.querySelector('.bubble-reply')!.addEventListener('click', (e) => {
+          e.stopPropagation();
+          hide();
+          const form = comment.querySelector<HTMLElement>('.reply-form')!;
+          form.classList.remove('hidden');
+          form.querySelector('textarea')?.focus();
+        });
+      }
+      // tap outside closes any open bubble
+      document.addEventListener('click', () => {
+        for (const b of document.querySelectorAll('.react-bubble')) {
+          b.classList.add('hidden');
+          b.classList.remove('flex');
+        }
+      });
+      // cancel buttons re-hide the form they're in
+      for (const b of document.querySelectorAll('.reply-cancel')) {
+        b.addEventListener('click', () => b.closest('.reply-form')?.classList.add('hidden'));
+      }
+      for (const b of document.querySelectorAll('.comment-cancel')) {
+        b.addEventListener('click', () => b.closest('details')?.removeAttribute('open'));
       }
 
       // "Get notified" — web push, with per-platform install handling
@@ -382,10 +535,23 @@ const scrollRows = (images: Images) => {
         const sameKey = (a: ArrayBuffer | null) =>
           !!a && new Uint8Array(a).every((b, i) => b === appKey[i]) && a.byteLength === appKey.length;
 
+        // register the subscription (upsert), attaching the commenter's name if we know it
+        const postSub = (sub: PushSubscription) =>
+          fetch('/api/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...sub.toJSON(),
+              name: localStorage.getItem('commenter-name') || undefined,
+              authorId: localStorage.getItem('commenter-id') || undefined,
+            }),
+          });
+
         const reg = await navigator.serviceWorker.register('/sw.js');
         const existing = await reg.pushManager.getSubscription();
         if (existing) {
           if (sameKey(existing.options.applicationServerKey)) {
+            postSub(existing); // sync name in case they've commented since subscribing
             show('', '🔔 You’ll be notified of new posts');
             return;
           }
@@ -414,11 +580,7 @@ const scrollRows = (images: Images) => {
               userVisibleOnly: true,
               applicationServerKey: appKey,
             });
-            await fetch('/api/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(sub),
-            });
+            await postSub(sub);
             show('', '🔔 You’ll be notified of new posts');
           } catch (err) {
             console.error('push subscribe failed', err);

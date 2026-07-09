@@ -11,6 +11,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   const id = String(form.get('id') ?? '');
   const name = String(form.get('name') ?? '').trim().slice(0, 50);
   const text = String(form.get('text') ?? '').trim().slice(0, 1000);
+  const authorId = String(form.get('authorId') ?? '').trim().slice(0, 64) || undefined;
   if (!name || !text) {
     return new Response('Name and comment are both required.', { status: 400 });
   }
@@ -23,7 +24,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       // hard cap so scripted spam can't grow posts.json without bound
       return new Response('This post has reached its comment limit.', { status: 429 });
     }
-    (post.comments ??= []).push({ name, text, createdAt: new Date().toISOString() });
+    (post.comments ??= []).push({ name, text, createdAt: new Date().toISOString(), authorId });
     label = post.title || post.caption || '';
     return null;
   });

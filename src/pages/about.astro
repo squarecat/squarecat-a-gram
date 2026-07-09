@@ -1,0 +1,90 @@
+---
+import '../styles/global.css';
+import site from '../../site.json';
+import { Content } from '../../about.md';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About — {site.name}</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Butterfly+Kids&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-white text-neutral-800 antialiased">
+    <header class="py-14 text-center">
+      <a href="/">
+        <img src="/assets/icon-256.png" alt="" class="mx-auto h-16 w-16" />
+      </a>
+      <h1 class="font-hand mt-1 text-5xl text-neutral-900">
+        <a href="/">{site.name}</a>
+      </h1>
+    </header>
+
+    <main class="prose mx-auto max-w-3xl px-4 pb-24">
+      <Content />
+      <p class="mt-10 text-center">
+        <a href="/" class="text-sm text-neutral-500 hover:text-neutral-900">&larr; Back to the feed</a>
+      </p>
+    </main>
+
+    <style>
+      .prose :global(h1) {
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        color: #171717;
+      }
+      .prose :global(p) {
+        margin-bottom: 1rem;
+        line-height: 1.7;
+        font-size: 17px;
+        color: #404040;
+      }
+      .prose :global(a) {
+        color: #171717;
+        text-decoration: underline;
+      }
+      .prose :global(ul) {
+        list-style: disc;
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      /* polaroid: white frame with a soft shadow, a jaunty tilt, handwritten caption */
+      .prose :global(.polaroid) {
+        border-radius: 4px;
+        width: 260px;
+        max-width: 80%;
+        float: right;
+        margin: 1em;
+        padding: 12px 12px 6px;
+        background: #fff;
+        border: 1px solid #ececec;
+        box-shadow: 0 8px 20px rgb(0 0 0 / 0.18);
+        transform: rotate(2.5deg);
+        transition: transform 0.25s ease;
+      }
+      
+      .prose :global(.polaroid img) {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 2px;
+      }
+      .prose :global(.polaroid figcaption) {
+        margin-top: 10px;
+        font-family: 'Butterfly Kids', cursive;
+        text-align: center;
+        font-size: 1.7rem;
+        line-height: 1.2;
+        padding: 0.5rem 0 0.3rem;
+        color: #3a3a3a;
+        font-weight: 600;
+      }
+    </style>
+  </body>
+</html>

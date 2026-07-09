@@ -15,6 +15,13 @@ export const POST: APIRoute = async ({ request }) => {
   ) {
     return new Response('Invalid subscription', { status: 400 });
   }
-  await addSubscription({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } });
+  const name = typeof sub.name === 'string' ? sub.name.trim().slice(0, 50) : undefined;
+  const authorId = typeof sub.authorId === 'string' ? sub.authorId.trim().slice(0, 64) : undefined;
+  await addSubscription({
+    endpoint: sub.endpoint,
+    keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+    name,
+    authorId,
+  });
   return new Response(null, { status: 204 });
 };

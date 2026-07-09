@@ -7,19 +7,10 @@ export function telegramEnabled(): boolean {
   return Boolean(TOKEN && CHAT);
 }
 
-/** Fire-and-forget Telegram ping on a new comment. Plain text (no parse_mode) so
- *  user-supplied name/text can't inject markup. Never throws — commenting must not break. */
-export async function notifyComment(opts: {
-  postId: string;
-  postLabel: string;
-  name: string;
-  text: string;
-}): Promise<void> {
+// Plain text (no parse_mode) so user-supplied name/text can't inject markup.
+// Never throws — a ping failure must not break commenting/replying.
+async function send(message: string): Promise<void> {
   if (!telegramEnabled()) return;
-  const base = (process.env.SITE_URL ?? '').replace(/\/$/, '');
-  const link = base ? `\n${base}/#post-${opts.postId}` : '';
-  const on = opts.postLabel ? ` on “${opts.postLabel}”` : '';
-  const message = `💬 New comment${on}\n${opts.name}: ${opts.text}${link}`;
   try {
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: 'POST',
@@ -31,7 +22,20 @@ export async function notifyComment(opts: {
     const body = await res.json().catch(() => ({}));
     if (!body?.ok) console.error(`[telegram] send failed: ${body?.description ?? res.status}`);
   } catch (e) {
-    // never let a ping failure affect the comment, but do log it
     console.error(`[telegram] request error: ${(e as Error).message}`);
   }
+}
+
+const postLink = (postId: string) => {
+  const base = (process.env.SITE_URL ?? '').replace(/\/$/, '');
+  return base ? `\n${base}/#post-${postId}` : '';
+};
+
+export function notifyComment(opts: { postId: string; postLabel: string; name: string; text: string }) {
+  const on = opts.postLabel ? ` on “${opts.postLabel}”` : '';
+  return send(`💬 New comment${on}\n${opts.name}: ${opts.text}${postLink(opts.postId)}`);
+}
+
+export function notifyReplyTelegram(opts: { postId: string; name: string; text: string; toName: string }) {
+  return send(`↳ ${opts.name} replied to ${opts.toName}\n${opts.text}${postLink(opts.postId)}`);
 }

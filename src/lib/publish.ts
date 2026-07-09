@@ -99,8 +99,13 @@ export interface AlbumResult {
   location?: { lat: number; lng: number }; // first photo's GPS, rounded ~11km for privacy
 }
 
-export async function albumToImages(albumUrl: string, postId: string): Promise<AlbumResult> {
+export async function albumToImages(
+  albumUrl: string,
+  postId: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<AlbumResult> {
   const album = await findSource(albumUrl).list(albumUrl); // sorted by takenAt
+  onProgress?.(0, album.length);
 
   const dir = join(MEDIA_DIR, postId);
   await rm(dir, { recursive: true, force: true });
@@ -115,6 +120,7 @@ export async function albumToImages(albumUrl: string, postId: string): Promise<A
         ? await videoToMp4(await item.download(), dir, postId, name)
         : await imageToWebp(item, dir, postId, name),
     );
+    onProgress?.(images.length, album.length);
   }
 
   if (!images.length) throw new Error('No media found in that album (live photos are skipped)');

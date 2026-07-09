@@ -46,3 +46,9 @@ hr {
   margin-top: 2em;
   opacity: 0.1;
 }
+
+h2 {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 1em 0 0.25em 0; 
+}

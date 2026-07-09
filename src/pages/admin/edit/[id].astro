@@ -134,20 +134,39 @@ const fmt = (iso: string) =>
             <h2 class="mb-3 text-sm font-semibold text-neutral-700">Comments ({post.comments.length})</h2>
             <ul class="space-y-2">
               {post.comments.map((c, i) => (
-                <li class="flex items-start gap-2 text-sm">
-                  <span class="flex-1">
-                    <span class="font-medium">{c.name}</span>{' '}
-                    <span class="whitespace-pre-wrap text-neutral-600">{c.text}</span>
-                    <span class="block text-xs text-neutral-400">{fmt(c.createdAt)}</span>
-                  </span>
-                  <button
-                    formaction="/api/comment-delete"
-                    formnovalidate
-                    name="ci"
-                    value={i}
-                    aria-label="Delete comment"
-                    class="cdel shrink-0 cursor-pointer rounded px-2 py-1 leading-none text-red-600 hover:bg-red-50"
-                  >&times;</button>
+                <li class="text-sm">
+                  <div class="flex items-start gap-2">
+                    <span class="flex-1">
+                      <span class="font-medium">{c.name}</span>{' '}
+                      <span class="whitespace-pre-wrap text-neutral-600">{c.text}</span>
+                      <span class="block text-xs text-neutral-400">{fmt(c.createdAt)}</span>
+                    </span>
+                    <button
+                      formaction="/api/comment-delete"
+                      formnovalidate
+                      name="ci"
+                      value={i}
+                      aria-label="Delete comment"
+                      class="cdel shrink-0 cursor-pointer rounded px-2 py-1 leading-none text-red-600 hover:bg-red-50"
+                    >&times;</button>
+                  </div>
+                  {c.replies?.map((r, ri) => (
+                    <div class="mt-1 ml-4 flex items-start gap-2 border-l-2 border-neutral-200 pl-3">
+                      <span class="flex-1">
+                        <span class="font-medium">{r.name}</span>{' '}
+                        <span class="whitespace-pre-wrap text-neutral-600">{r.text}</span>
+                        <span class="block text-xs text-neutral-400">{fmt(r.createdAt)}</span>
+                      </span>
+                      <button
+                        formaction="/api/reply-delete"
+                        formnovalidate
+                        name="ref"
+                        value={`${c.createdAt}|${ri}`}
+                        aria-label="Delete reply"
+                        class="cdel shrink-0 cursor-pointer rounded px-2 py-1 leading-none text-red-600 hover:bg-red-50"
+                      >&times;</button>
+                    </div>
+                  ))}
                 </li>
               ))}
             </ul>

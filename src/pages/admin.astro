@@ -4,8 +4,11 @@ import '../styles/global.css';
 import site from '../../site.json';
 import { readPosts } from '../lib/store';
 import { COUNTRIES } from '../lib/countries';
+import { readSubscriptions } from '../lib/subscriptions';
 
 const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+const subs = await readSubscriptions();
+const namedSubs = subs.filter((s) => s.name).length;
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 ---
@@ -20,7 +23,13 @@ const fmt = (iso: string) =>
   </head>
   <body class="bg-neutral-50 text-neutral-800 antialiased">
     <div class="mx-auto max-w-xl px-4 py-16">
-      <h1 class="mb-8 text-xl font-semibold text-neutral-900">New post</h1>
+      <div class="mb-8 flex items-baseline justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">New post</h1>
+        <span class="text-sm text-neutral-400">
+          🔔 {subs.length} subscriber{subs.length === 1 ? '' : 's'}
+          {namedSubs > 0 && ` (${namedSubs} named)`}
+        </span>
+      </div>
       <form method="post" action="/api/publish" class="space-y-5">
         <label class="block">
           <span class="text-sm font-medium">Ente album link</span>
@@ -88,13 +97,20 @@ const fmt = (iso: string) =>
           ></textarea>
         </label>
         <button
+          id="publish-btn"
           class="cursor-pointer rounded-lg bg-neutral-900 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-wait disabled:bg-neutral-400"
         >
           Publish
         </button>
-        <p class="text-sm leading-relaxed text-neutral-500">
+        <div id="progress" hidden>
+          <div class="h-2 overflow-hidden rounded-full bg-neutral-200">
+            <div id="progress-bar" class="h-full w-0 rounded-full bg-neutral-900 transition-[width] duration-300"></div>
+          </div>
+          <p id="progress-label" class="mt-2 text-sm text-neutral-500"></p>
+        </div>
+        <p id="publish-hint" class="text-sm leading-relaxed text-neutral-500">
           Publishing downloads and processes every photo in the album — it can take a couple of
-          minutes. Leave this page open; you'll land on the feed when it's done.
+          minutes. You can leave this page open; it'll take you to the feed when it's done.
         </p>
       </form>
 
@@ -122,10 +138,55 @@ const fmt = (iso: string) =>
       )}
     </div>
     <script>
-      document.querySelector('form')!.addEventListener('submit', () => {
-        const btn = document.querySelector('button')!;
+      const form = document.querySelector('form') as HTMLFormElement;
+      const btn = document.getElementById('publish-btn') as HTMLButtonElement;
+      const progress = document.getElementById('progress')!;
+      const bar = document.getElementById('progress-bar') as HTMLElement;
+      const label = document.getElementById('progress-label')!;
+      const hint = document.getElementById('publish-hint')!;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         btn.disabled = true;
         btn.textContent = 'Publishing…';
+
+        const res = await fetch('/api/publish', { method: 'POST', body: new FormData(form) });
+        if (!res.ok) {
+          // e.g. 401 wrong password
+          label.textContent = await res.text();
+          progress.hidden = false;
+          bar.classList.add('bg-red-600');
+          btn.disabled = false;
+          btn.textContent = 'Publish';
+          return;
+        }
+        const { id } = await res.json();
+        progress.hidden = false;
+        hint.hidden = true;
+        label.textContent = 'Preparing…';
+
+        const poll = setInterval(async () => {
+          const s = await fetch(`/api/publish-status?id=${id}`).then((r) => (r.ok ? r.json() : null));
+          if (!s) return;
+          if (s.status === 'error') {
+            clearInterval(poll);
+            bar.classList.add('bg-red-600');
+            label.textContent = `Failed: ${s.error}`;
+            btn.disabled = false;
+            btn.textContent = 'Publish';
+            return;
+          }
+          if (s.total > 0) {
+            bar.style.width = `${Math.round((s.done / s.total) * 100)}%`;
+            label.textContent = `Processing ${s.done} / ${s.total}…`;
+          }
+          if (s.status === 'done') {
+            clearInterval(poll);
+            bar.style.width = '100%';
+            label.textContent = 'Done!';
+            window.location.href = '/';
+          }
+        }, 1000);
       });
     </script>
   </body>

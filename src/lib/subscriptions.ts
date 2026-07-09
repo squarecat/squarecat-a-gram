@@ -6,6 +6,8 @@ import { dirname } from 'node:path';
 export interface PushSub {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+  name?: string; // the commenter's name, for personalised notifications
+  authorId?: string; // stable per-browser id linking this sub to that person's comments
 }
 
 // ponytail: JSON file store, mirrors lib/store.ts. Separate file from posts.
@@ -40,9 +42,15 @@ export function updateSubscriptions<T>(fn: (subs: PushSub[]) => T | Promise<T>):
   return run;
 }
 
+/** Upsert by endpoint: adds a new subscription, or updates the name of an existing one. */
 export function addSubscription(sub: PushSub): Promise<void> {
   return updateSubscriptions((subs) => {
-    if (subs.some((s) => s.endpoint === sub.endpoint)) return; // dedupe
+    const existing = subs.find((s) => s.endpoint === sub.endpoint);
+    if (existing) {
+      if (sub.name) existing.name = sub.name; // learned/updated their name
+      if (sub.authorId) existing.authorId = sub.authorId;
+      return;
+    }
     if (subs.length >= MAX) return; // full — drop silently
     subs.push(sub);
   });

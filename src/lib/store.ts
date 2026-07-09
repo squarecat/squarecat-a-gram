@@ -13,11 +13,37 @@ export interface Post {
   createdAt: string; // ISO
   enteUrl?: string; // kept for re-sync; absent on pre-edit-feature posts
   images: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string }[];
-  comments?: { name: string; text: string; createdAt: string }[];
+  comments?: Comment[];
+  reactions?: Record<string, number>;
+}
+
+export interface Reply {
+  name: string;
+  text: string;
+  createdAt: string; // ISO
+  authorId?: string; // replier's stable per-browser id
+}
+
+export interface Comment {
+  name: string;
+  text: string;
+  createdAt: string; // ISO — also the reply-target key (unique enough at this scale)
+  authorId?: string; // commenter's stable per-browser id (matches their push subscription)
+  replies?: Reply[];
   reactions?: Record<string, number>;
 }
 
 export const REACTION_EMOJIS = ['❤️', '😍', '😂', '😮', '😢', '👏'];
+export const REACTION_EMOJIS_REPLY = ['👍', '👎', ...REACTION_EMOJIS];
+
+/** Add a reaction, removing the reactor's previous one (so a click overrides, not stacks). */
+export function applyReaction(reactions: Record<string, number>, emoji: string, prev?: string): void {
+  if (prev && prev !== emoji && reactions[prev]) {
+    reactions[prev]--;
+    if (reactions[prev] <= 0) delete reactions[prev];
+  }
+  reactions[emoji] = (reactions[emoji] ?? 0) + 1;
+}
 
 // ponytail: JSON file store; move to SQLite only if it ever grows/concurrent-writes.
 const FILE = process.env.DATA_FILE ?? 'data/posts.json';

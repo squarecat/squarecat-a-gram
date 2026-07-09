@@ -46,6 +46,12 @@ First publish: use a **1-photo album** to shake out the pipeline before trusting
 
 Rebuild after changing it (`yarn build`) — it's bundled at build time.
 
+### `about.md`
+
+The `/about` page (linked from the feed footer) is rendered from **`about.md`** in the repo
+root — plain Markdown, edit it to describe your feed. Bundled at build time like `site.json`,
+so rebuild after changing it.
+
 ### Environment variables
 
 A `.env` file in the working directory is loaded automatically (dotenv); already-set vars
