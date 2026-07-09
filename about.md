@@ -3,7 +3,7 @@
 Hello, we're **Danielle & James**, welcome to our little travel feed.
 
 <figure class="polaroid">
-  <img src="https://leavemealone.com/_astro/james-danielle.Bv01z9qV.png" alt="James & Danielle" />
+  <img src="/assets/us.png" alt="James & Danielle" />
   <figcaption>James &amp; Danielle</figcaption>
 </figure>
 
