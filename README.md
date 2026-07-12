@@ -15,16 +15,23 @@ Optional web push notifies subscribers of new posts.
 
 Example at https://feed.squarecat.io
 
-Built-in photo source: **[Ente](https://ente.io)** public album links (including self-hosted
-Ente). Other sources (Google Photos, …) can be added — see [Writing a photo source](#writing-a-photo-source).
+Built-in photo sources: **[Ente](https://ente.io)** public album links (including self-hosted
+Ente) and **iCloud Shared Albums** (turn on the album's "Public Website" link and paste the
+`icloud.com/sharedalbum/#…` URL). Other sources can be added — see
+[Writing a photo source](#writing-a-photo-source).
 
 ## Quick start
 
 ```sh
 yarn                 # Node ≥ 20.19 (≥ 22.6 for yarn selfcheck)
+cp .env.example .env # then edit .env — at minimum set ADMIN_PASSWORD
 yarn dev             # dev server on :2987
 yarn build && yarn start
 ```
+
+Open `.env` and fill in the vars you need — `ADMIN_PASSWORD` is required to publish; `SITE_URL`,
+the `VAPID_*` push keys, Telegram, and `ENTE_API_BASE` are all optional (see
+[Environment variables](#environment-variables) for the full list).
 
 Then make it yours:
 
@@ -33,7 +40,7 @@ Then make it yours:
 3. Optional: swap the handwriting font — the Google Fonts `<link>` and `.font-hand` family in
    `src/styles/global.css` / `src/pages/index.astro` control the site; the TTF in `fonts/`
    controls the social-preview image (path configured at the top of `src/pages/og.jpg.ts`).
-4. Set `ADMIN_PASSWORD` (see env vars) and publish your first post at `/admin`.
+4. Publish your first post at `/admin`.
 
 First publish: use a **1-photo album** to shake out the pipeline before trusting a full album.
 
@@ -73,13 +80,6 @@ A `.env` file in the working directory is loaded automatically (dotenv); already
 | `MEDIA_DIR` | `media` | Optimised images, written at publish time |
 | `HOST` / `PORT` | `0.0.0.0` / `2987` | Node server bind (`yarn start` sets these) |
 
-### Self-check
-
-```sh
-yarn selfcheck                      # crypto vectors (base58 / SecretBox / SecretStream)
-yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
-```
-
 ## Location globe
 
 Each post shows a small globe pinned to where it was taken. The pin location is resolved in
@@ -94,41 +94,6 @@ this order:
 If neither is available, the post simply has no globe. The globe is server-rendered SVG with
 real continents (via `d3-geo` + a bundled Natural Earth land file in `src/geo/`) — no client JS,
 no map tiles, no network calls. Country centroids live in `src/geo/countries.json`.
-
-## Writing a photo source
-
-A source turns a share URL into a list of downloadable original images. The whole contract is
-in `src/sources/types.ts`:
-
-```ts
-export interface AlbumImage {
-  title: string;               // original filename (drives HEIC handling)
-  takenAt: number;             // epoch µs, for ordering
-  kind: 'image' | 'video';
-  lat?: number;                // capture GPS, if the source has it (globe pin)
-  lng?: number;
-  download(): Promise<Buffer>; // original bytes, decrypted/decoded
-}
-
-export interface Source {
-  name: string;
-  matches(shareUrl: string): boolean;
-  /** Validate + list album items, sorted by takenAt. Throw human-readable errors. */
-  list(shareUrl: string): Promise<AlbumImage[]>;
-}
-```
-
-Add a module in `src/sources/` and register it in `src/sources/index.ts`:
-
-```ts
-export const sources: Source[] = [enteSource, googlePhotosSource];
-```
-
-The publish pipeline (`src/lib/publish.ts`) handles everything after `download()`: HEIC
-fallback, video transcoding (ffmpeg → web-safe H.264 + poster), EXIF stripping, resizing, webp
-encoding, and the post store. A source just marks each item's `kind` (and optional `lat`/`lng`).
-`src/sources/ente.ts` is the reference implementation, including end-to-end decryption of Ente's
-public albums.
 
 ## Deploy (Docker)
 
@@ -162,6 +127,60 @@ vars set — but need **`ffmpeg` on `PATH`** for videos (`apt install ffmpeg`), 
 
 Live photos (skipped at publish with a note), reaction rate-limiting beyond a honeypot +
 localStorage, multiple albums per post. All additive.
+
+## Contributing
+
+### Self-check
+
+Verifies the trickiest, most breakable part — the Ente decryption chain — without publishing
+anything. Run it after a dependency bump or if publishing starts failing with garbled images.
+
+```sh
+yarn selfcheck                      # crypto vectors (base58 / SecretBox / SecretStream)
+yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
+```
+
+With no argument it asserts the crypto primitives round-trip correctly against known vectors
+(base58 decode, SecretBox unwrap, chunked SecretStream) — so a broken sodium/bs58 install fails
+loudly and obviously. Given an Ente share link it goes further and does the real thing end to
+end: parse the URL, fetch the album info + file list, derive each file key, decrypt the
+metadata, and download + decrypt the first image — proving the whole pipeline works against a
+live album before you trust it with a real post.
+
+### Writing a photo source
+
+A source turns a share URL into a list of downloadable original images. The whole contract is
+in `src/sources/types.ts`:
+
+```ts
+export interface AlbumImage {
+  title: string;               // original filename (drives HEIC handling)
+  takenAt: number;             // epoch µs, for ordering
+  kind: 'image' | 'video';
+  lat?: number;                // capture GPS, if the source has it (globe pin)
+  lng?: number;
+  download(): Promise<Buffer>; // original bytes, decrypted/decoded
+}
+
+export interface Source {
+  name: string;
+  matches(shareUrl: string): boolean;
+  /** Validate + list album items, sorted by takenAt. Throw human-readable errors. */
+  list(shareUrl: string): Promise<AlbumImage[]>;
+}
+```
+
+Add a module in `src/sources/` and register it in `src/sources/index.ts`:
+
+```ts
+export const sources: Source[] = [enteSource, icloudSource, googlePhotosSource];
+```
+
+The publish pipeline (`src/lib/publish.ts`) handles everything after `download()`: HEIC
+fallback, video transcoding (ffmpeg → web-safe H.264 + poster), EXIF stripping, resizing, webp
+encoding, and the post store. A source just marks each item's `kind` (and optional `lat`/`lng`).
+`src/sources/ente.ts` (encrypted) and `src/sources/icloud.ts` (plain JSON API) are the reference
+implementations.
 
 ## License
 

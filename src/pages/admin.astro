@@ -32,14 +32,17 @@ const fmt = (iso: string) =>
       </div>
       <form method="post" action="/api/publish" class="space-y-5">
         <label class="block">
-          <span class="text-sm font-medium">Ente album link</span>
+          <span class="text-sm font-medium">Album link <span class="font-normal text-neutral-400">(Ente or iCloud shared album)</span></span>
           <input
             type="url"
             name="enteUrl"
             required
-            placeholder="https://photos-public.squarecat.io/?t=…#…"
+            placeholder="https://…  (Ente ?t=…#…  or  icloud.com/sharedalbum/#…)"
             class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
           />
+          <p id="icloud-note" hidden class="mt-1.5 text-xs text-amber-600">
+            iCloud albums don't include location — pick a Country below so the globe still shows.
+          </p>
         </label>
         <label class="block">
           <span class="text-sm font-medium">Posted by</span>
@@ -144,6 +147,13 @@ const fmt = (iso: string) =>
       const bar = document.getElementById('progress-bar') as HTMLElement;
       const label = document.getElementById('progress-label')!;
       const hint = document.getElementById('publish-hint')!;
+
+      // iCloud shared albums carry no GPS — nudge the author to pick a country for the globe
+      const urlEl = form.querySelector('[name="enteUrl"]') as HTMLInputElement;
+      const icloudNote = document.getElementById('icloud-note')!;
+      const checkIcloud = () => (icloudNote.hidden = !/icloud\.com/i.test(urlEl.value));
+      urlEl.addEventListener('input', checkIcloud);
+      checkIcloud();
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
