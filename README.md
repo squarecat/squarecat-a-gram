@@ -1,57 +1,42 @@
 # Squarecat-a-gram
 
-A little self-hosted photo and video blog for sharing your travels — without handing it all to
-Instagram.
+**A tiny self-hosted photo blog. Think personal, private Instagram, without the brain rot**
 
-You write a post by pasting a link to a shared photo album and adding a caption. The server
-fetches those photos once, tidies them up, and publishes them as a clean public feed: a mosaic
-of images with your words underneath, a small globe showing where you were, and comments,
-reactions and (optionally) push notifications when you post. There's no database — everything
-lives in a couple of JSON files on disk, and location data is stripped from the photos so you're
-not quietly broadcasting where you live.
+Supports [iCloud Photos](https://www.icloud.com/photos) & [Ente](https://ente.com/).
 
 <img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
 
-You can see it running at https://feed.squarecat.io.
+You can see it running at https://feed.squarecat.io
 
-**Where the photos come from.** Out of the box it can read:
+## How?
 
-- **[Ente](https://ente.io)** public album links (including a self-hosted Ente), and
-- **iCloud Shared Albums** — turn on the album's "Public Website" option in Photos, then paste
-  the `icloud.com/sharedalbum/#…` link.
+Each photo album you make becomes a post on your feed that visitors can comment on or react to!
 
-Want to pull from somewhere else, like Google Photos? That's a small plugin — see
-[Writing a photo source](#writing-a-photo-source) at the bottom.
+- Add photos to an album in iCloud or Ente
+- Share it to get a public link
+- Paste that link into Squarecat-a-gram
+- It does a bit of processing, then a new post appears on your feed!
+- Any subscribers are sent a web notification
 
 ## Quick start
 
-You'll need Node 20.19 or newer (22.6+ if you want to run the self-check).
-
 ```sh
-yarn                 # install dependencies
-cp .env.example .env # your settings live here
-yarn dev             # now running at http://localhost:2987
+yarn                 # Node ≥ 22
+cp .env.example .env
+yarn dev             # dev server runs on :2987
+yarn build && yarn start
 ```
 
-Open `.env` and fill in what you need. The only one that's actually required is
-`ADMIN_PASSWORD` — it's what stops a stranger publishing to your feed. Everything else (your
-public URL, push notifications, Telegram alerts) is optional; there's a
-[full list further down](#environment-variables).
+Then make it yours:
 
-Then a few things to make it your own:
+1. Edit **`site.json`** — site name, subtitle, tagline, default author.
+2. Replace **`public/assets/icon.png`** and **`icon-256.png`** (favicon + header icon).
+3. Optional: swap the handwriting font — the Google Fonts `<link>` and `.font-hand` family in
+   `src/styles/global.css` / `src/pages/index.astro` control the site; the TTF in `fonts/`
+   controls the social-preview image (path configured at the top of `src/pages/og.jpg.ts`).
+4. Set `ADMIN_PASSWORD` (see env vars) and publish your first post at `/admin`.
 
-1. **`site.json`** — the name, subtitle, tagline and default author shown around the site.
-2. **`public/assets/icon.png`** and **`icon-256.png`** — the header logo and browser favicon.
-   Drop in your own.
-3. *Optional:* change the handwriting font. The `<link>` and `.font-hand` rules in
-   `src/styles/global.css` / `src/pages/index.astro` set it for the site, and the font file in
-   `fonts/` is used for the social-share image (that path lives at the top of
-   `src/pages/og.jpg.ts`).
-4. Go to `/admin`, enter your password, and publish your first post.
-
-A tip for that first post: start with a **one-photo album** so you can watch the whole process
-work before pointing it at a big one. When you're ready for production, `yarn build && yarn
-start`.
+First publish: use a **1-photo album** to shake out the pipeline before trusting a full album.
 
 ## Configuration
 
@@ -59,39 +44,39 @@ start`.
 
 The bits of text shown around the site:
 
-| Key | Where it shows up |
-|---|---|
-| `name` | The `<h1>`, the browser tab title, and the handwritten line on share images |
-| `subtitle` | The tab title and the second line of share images |
-| `tagline` | The line under the header, and the fallback description for link previews |
-| `defaultAuthor` | Prefills the "Posted by" field, and signs older posts that predate it |
-
-It's baked in when the site builds, so run `yarn build` after you change it.
+| Key             | Used for                                                                  |
+| --------------- | ------------------------------------------------------------------------- |
+| `name`          | `<h1>`, `<title>`, OG title, handwritten line of the OG image             |
+| `subtitle`      | `<title>`, second line of the OG image                                    |
+| `tagline`       | Header subheading, OG description fallback                                |
+| `defaultAuthor` | Prefill for the "Posted by" form field + signature fallback for old posts |
 
 ### `about.md`
 
-The `/about` page (linked from the footer) is just the Markdown in **`about.md`** at the repo
-root — edit it to say hello and describe your feed. Like `site.json`, it's built in, so rebuild
-after editing.
+The `/about` page is rendered from **`about.md`**.
 
 ### Environment variables
 
-These live in `.env`, which is loaded automatically. (If you set a variable in the actual
-environment — say via a systemd unit — that takes precedence.)
+| Var                                                        | Default                           |                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_PASSWORD`                                           | _(unset — publishing disabled)_   | Required in the `/admin` forms to publish/edit/delete                                                                                                                                                   |
+| `SITE_URL`                                                 | _(request origin)_                | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs                                                                                                               |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | _(unset — push disabled)_         | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`                  | _(unset — off)_                   | Ping a Telegram chat on each new comment or reply. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups).                              |
+| `ENTE_API_BASE`                                            | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts)                                                                                                                                     |
+| `DATA_FILE`                                                | `data/posts.json`                 | Post store                                                                                                                                                                                              |
+| `SUBS_FILE`                                                | `data/subscriptions.json`         | Push subscription store                                                                                                                                                                                 |
+| `MEDIA_DIR`                                                | `media`                           | Optimised images, written at publish time                                                                                                                                                               |
+| `HOST` / `PORT`                                            | `0.0.0.0` / `2987`                | Node server bind (`yarn start` sets these)                                                                                                                                                              |
 
-| Variable | Default | What it does |
-|---|---|---|
-| `ADMIN_PASSWORD` | *(unset — publishing off)* | The password for the `/admin` forms. Required to publish, edit or delete. |
-| `SITE_URL` | *(the request's origin)* | Your public address, e.g. `https://feed.example.com`. Set this in production so link previews point to the right place. |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | *(unset — push off)* | Turns on push notifications. Generate the key pair once with `npx web-push generate-vapid-keys`; the subject is a contact address like `mailto:you@example.com`. Leave them unset and the "Get notified" button simply doesn't appear. |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | *(unset — off)* | Pings a Telegram chat whenever someone comments or replies. Get a token from [@BotFather](https://t.me/BotFather), add the bot to your chat, and use that chat's id (negative for groups/channels). |
-| `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Which Ente server to talk to. Use `https://api.ente.io` for a regular ente.io account. |
-| `DATA_FILE` | `data/posts.json` | Where posts are stored. |
-| `SUBS_FILE` | `data/subscriptions.json` | Where push subscriptions are stored. |
-| `MEDIA_DIR` | `media` | Where processed photos and videos are written. |
-| `HOST` / `PORT` | `0.0.0.0` / `2987` | What the server binds to (`yarn start` sets these for you). |
+### Self-check
 
-## The location globe
+```sh
+yarn selfcheck                      # crypto vectors (base58 / SecretBox / SecretStream)
+yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
+```
+
+## Location globe
 
 Every post shows a little globe with a pin on where it was taken. It figures out the spot like
 this:
@@ -130,7 +115,7 @@ than baked in.
 
 The app serves everything itself on port `2987` — the pages, the photos, the admin — so you can
 put whatever reverse proxy and HTTPS you like in front of it. One thing to know: publishing runs
-in the background with a progress bar, so it won't trip a proxy timeout, but *re-syncing* an
+in the background with a progress bar, so it won't trip a proxy timeout, but _re-syncing_ an
 existing post still happens in one request, so give your proxy a generous read timeout (say
 600s) if you re-sync big or video-heavy albums.
 
@@ -140,12 +125,6 @@ Videos are converted with `ffmpeg`, which the Docker image already includes. You
 it without Docker — `yarn && yarn build`, then `node dist/server/entry.mjs` with your env vars
 set — but you'll need `ffmpeg` on the `PATH` for videos (`apt install ffmpeg`), Node 20.19+, and
 `heic-convert` handles iPhone HEIC photos if your `sharp` build can't.
-
-## What's intentionally left out
-
-To keep things simple, a few things aren't here (and would all be easy to add later): live
-photos (they're skipped with a note), heavier spam protection on reactions beyond a honeypot,
-and more than one album per post.
 
 ## Contributing
 
@@ -172,10 +151,10 @@ entire contract is in `src/sources/types.ts`:
 
 ```ts
 export interface AlbumImage {
-  title: string;               // original filename (used to spot HEIC files)
-  takenAt: number;             // epoch µs, for ordering
-  kind: 'image' | 'video';
-  lat?: number;                // capture location, if the source exposes it (for the globe)
+  title: string; // original filename (used to spot HEIC files)
+  takenAt: number; // epoch µs, for ordering
+  kind: "image" | "video";
+  lat?: number; // capture location, if the source exposes it (for the globe)
   lng?: number;
   download(): Promise<Buffer>; // the original bytes, already decrypted/decoded
 }
