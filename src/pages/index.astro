@@ -47,8 +47,9 @@ const buildColumns = (images: Images): Column[] => {
   if (stash) cols.push({ kind: 'big', img: stash }); // odd portrait → its own double column
   return cols;
 };
-// fixed widths: landscape is twice a portrait; double-height cells are twice as tall/wide
-const singleW = (img: Img) => (landscape(img) ? 'w-[320px]' : 'w-[160px]');
+// fixed widths: a landscape must equal two portraits PLUS the 1px gap-px between them (160+1+160
+// = 321) so a paired-portrait row lines up exactly with a landscape row in the same stack column.
+const singleW = (img: Img) => (landscape(img) ? 'w-[321px]' : 'w-[160px]');
 const doubleW = (img: Img) => (landscape(img) ? 'w-[640px]' : 'w-[320px]');
 const fade = 'transition-opacity duration-200 hover:opacity-85';
 ---
