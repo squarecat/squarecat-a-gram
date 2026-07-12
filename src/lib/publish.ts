@@ -27,12 +27,34 @@ export function requirePassword(form: FormData): Response | null {
 
 // EXIF (incl. GPS/home coordinates) is stripped by sharp by default — this feed is
 // fully public, so never add .withMetadata() here.
+// `full` is what the lightbox loads; `thumb` is the small version the feed grid shows so a
+// post with lots of photos isn't multiple MB of full-res images.
 function toWebp(buf: Buffer) {
   return sharp(buf)
     .rotate() // bake in EXIF orientation before EXIF is stripped
     .resize({ width: 1400, withoutEnlargement: true })
     .webp({ quality: 82 })
     .toBuffer({ resolveWithObject: true });
+}
+function toThumb(buf: Buffer) {
+  return sharp(buf)
+    .rotate()
+    .resize({ width: 760, height: 760, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 72 })
+    .toBuffer();
+}
+/** Write both sizes and return the paths + full-res dimensions. */
+async function encodeSizes(buf: Buffer, dir: string, postId: string, name: string) {
+  const full = await toWebp(buf);
+  const thumb = await toThumb(buf);
+  await writeFile(join(dir, `${name}.webp`), full.data);
+  await writeFile(join(dir, `${name}-thumb.webp`), thumb);
+  return {
+    src: `/media/${postId}/${name}.webp`,
+    thumb: `/media/${postId}/${name}-thumb.webp`,
+    w: full.info.width,
+    h: full.info.height,
+  };
 }
 
 /**
@@ -54,13 +76,16 @@ async function videoToMp4(buf: Buffer, dir: string, postId: string, name: string
       '-c:a', 'aac', '-movflags', '+faststart', // faststart = playable while downloading
       join(dir, mp4)], { maxBuffer: 1 << 26 });
     await run('ffmpeg', ['-y', '-i', join(dir, mp4), '-frames:v', '1', '-q:v', '3', posterJpg]);
-    const out = await toWebp(await sharp(posterJpg).toBuffer());
-    await writeFile(join(dir, poster), out.data);
+    const pbuf = await sharp(posterJpg).toBuffer();
+    const full = await toWebp(pbuf);
+    await writeFile(join(dir, poster), full.data);
+    await writeFile(join(dir, `${name}-thumb.webp`), await toThumb(pbuf));
     return {
       src: `/media/${postId}/${mp4}`,
       poster: `/media/${postId}/${poster}`,
-      w: out.info.width,
-      h: out.info.height,
+      thumb: `/media/${postId}/${name}-thumb.webp`,
+      w: full.info.width,
+      h: full.info.height,
       kind: 'video' as const,
     };
   } catch (err: any) {
@@ -73,20 +98,16 @@ async function videoToMp4(buf: Buffer, dir: string, postId: string, name: string
 }
 
 async function imageToWebp(item: AlbumImage, dir: string, postId: string, name: string) {
-  let buf = await item.download();
-  let out;
+  const buf = await item.download();
   try {
-    out = await toWebp(buf);
+    return await encodeSizes(buf, dir, postId, name);
   } catch (err) {
     if (!/\.hei[cf]$/i.test(item.title)) throw err;
     // sharp built without libheif — convert HEIC → JPEG first
     const convert = (await import('heic-convert')).default;
-    buf = Buffer.from(await convert({ buffer: buf, format: 'JPEG', quality: 0.9 }));
-    out = await toWebp(buf);
+    const jpeg = Buffer.from(await convert({ buffer: buf, format: 'JPEG', quality: 0.9 }));
+    return await encodeSizes(jpeg, dir, postId, name);
   }
-  const file = `${name}.webp`;
-  await writeFile(join(dir, file), out.data);
-  return { src: `/media/${postId}/${file}`, w: out.info.width, h: out.info.height };
 }
 
 /**

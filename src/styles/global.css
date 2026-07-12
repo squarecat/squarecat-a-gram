@@ -6,7 +6,7 @@
 }
 
 h1.font-hand, h2.font-hand {
-  font-weight: 400;  
+  font-weight: 400;
 }
 
 /* subtle paper grain: tiled SVG fractal noise, no image file needed */
@@ -28,23 +28,51 @@ body:has(dialog[open]) {
   justify-content: center;
   gap: 1px;
 }
-/* every item (photo <img> or video <span>) is one row tall; width follows aspect */
+/* every item is a `.media` span, one row tall; the inner <img> fills it, width follows aspect */
 .gallery > * {
   height: var(--row);
+  max-width: 100%;
 }
 .gallery img {
-  width: auto;
-  max-width: 100%;
-  object-fit: cover; /* ultra-wide panoramas crop instead of shrinking the row */
-}
-/* a video item is a <span> wrapper — its inner <img> fills the wrapper's row height.
-   (direct photo <img>s get their height from `.gallery > *` above; don't set 100% here,
-   or it beats that rule on specificity and resolves to the image's intrinsic height.) */
-.gallery .media-video img {
   height: 100%;
+  width: auto;
+  object-fit: cover; /* ultra-wide panoramas crop instead of shrinking the row */
 }
 @media (max-width: 640px) {
   .gallery { --row: 150px; }
+}
+
+/* loading spinner behind every feed image until it loads (then .loaded hides it) */
+.media::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 3px solid rgb(0 0 0 / 0.12);
+  border-top-color: rgb(0 0 0 / 0.4);
+  animation: spin 0.7s linear infinite;
+}
+.media.loaded::before {
+  display: none;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* white spinner shown in the lightbox while the full-size image loads */
+.lb-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 4px solid rgb(255 255 255 / 0.25);
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
 }
 
 hr {

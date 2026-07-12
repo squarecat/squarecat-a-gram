@@ -128,7 +128,13 @@ const fmt = (iso: string) =>
             Delete post
           </button>
         </div>
-        <p class="text-sm leading-relaxed text-neutral-500">
+        <div id="progress" hidden>
+          <div class="h-2 overflow-hidden rounded-full bg-neutral-200">
+            <div id="progress-bar" class="h-full w-0 rounded-full bg-neutral-900 transition-[width] duration-300"></div>
+          </div>
+          <p id="progress-label" class="mt-2 text-sm text-neutral-500"></p>
+        </div>
+        <p id="save-hint" class="text-sm leading-relaxed text-neutral-500">
           Re-syncing downloads and processes the whole album again — it can take a couple of minutes.
         </p>
 
@@ -196,11 +202,61 @@ const fmt = (iso: string) =>
           if (!confirm('Delete this comment?')) e.preventDefault();
         });
       }
-      form.addEventListener('submit', (e) => {
+      const progress = document.getElementById('progress')!;
+      const bar = document.getElementById('progress-bar') as HTMLElement;
+      const plabel = document.getElementById('progress-label')!;
+      const saveHint = document.getElementById('save-hint')!;
+
+      form.addEventListener('submit', async (e) => {
         const s = e.submitter as HTMLButtonElement;
+        // delete / comment-delete / reply-delete buttons carry a formaction — let those submit
+        // normally (they're quick and redirect). Only the Save button runs the async job.
+        if (s?.getAttribute('formaction')) {
+          for (const btn of form.querySelectorAll('button')) btn.disabled = true;
+          if (s === del) s.textContent = 'Deleting…';
+          return;
+        }
+
+        e.preventDefault();
         for (const btn of form.querySelectorAll('button')) btn.disabled = true;
-        if (s === del) s.textContent = 'Deleting…';
-        else if (s?.id === 'save') s.textContent = 'Saving…';
+        s.textContent = 'Saving…';
+
+        const res = await fetch('/api/update', { method: 'POST', body: new FormData(form) });
+        if (!res.ok) {
+          progress.hidden = false;
+          bar.classList.add('bg-red-600');
+          plabel.textContent = await res.text();
+          for (const btn of form.querySelectorAll('button')) btn.disabled = false;
+          s.textContent = 'Save';
+          return;
+        }
+        const { id } = await res.json();
+        progress.hidden = false;
+        saveHint.hidden = true;
+        plabel.textContent = 'Saving…';
+
+        const poll = setInterval(async () => {
+          const st = await fetch(`/api/publish-status?id=${id}`).then((r) => (r.ok ? r.json() : null));
+          if (!st) return;
+          if (st.status === 'error') {
+            clearInterval(poll);
+            bar.classList.add('bg-red-600');
+            plabel.textContent = `Failed: ${st.error}`;
+            for (const btn of form.querySelectorAll('button')) btn.disabled = false;
+            s.textContent = 'Save';
+            return;
+          }
+          if (st.total > 0) {
+            bar.style.width = `${Math.round((st.done / st.total) * 100)}%`;
+            plabel.textContent = `Processing ${st.done} / ${st.total}…`;
+          }
+          if (st.status === 'done') {
+            clearInterval(poll);
+            bar.style.width = '100%';
+            plabel.textContent = 'Done!';
+            window.location.href = '/';
+          }
+        }, 1000);
       });
     </script>
   </body>

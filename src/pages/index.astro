@@ -268,6 +268,9 @@ const scrollRows = (images: Images) => {
       id="lightbox"
       class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none touch-none bg-transparent p-0 select-none backdrop:bg-neutral-950/95"
     >
+      <div id="lb-spin" hidden class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div class="lb-spinner"></div>
+      </div>
       <img id="lb-img" alt="" draggable="false" class="h-full w-full object-contain px-2 pt-2 pb-16 sm:px-6 sm:pt-6" />
       <video
         id="lb-vid"
@@ -309,6 +312,10 @@ const scrollRows = (images: Images) => {
       let scrollY = 0;
 
       const count = document.getElementById('lb-count')!;
+      const lbSpin = document.getElementById('lb-spin')!;
+      // hide the lightbox spinner once the full image has painted (or if it errors)
+      full.addEventListener('load', () => (lbSpin.hidden = true));
+      full.addEventListener('error', () => (lbSpin.hidden = true));
 
       // iOS Safari resolves h-dvh to the LARGE viewport for a top-layer <dialog>, so the
       // box overflows the visible screen and object-contain pushes the photo up under the
@@ -325,13 +332,14 @@ const scrollRows = (images: Images) => {
         vid.hidden = true;
         vid.removeAttribute('src');
         full.hidden = false;
-        full.src = el.src;
+        lbSpin.hidden = false; // spinner until the full image loads
+        full.src = el.dataset.full || el.src; // load the full-size image, not the grid thumb
         play.hidden = !el.dataset.video;
         count.textContent = `${idx + 1} / ${group.length}`;
-        // preload neighbouring photos (not videos) so paging feels instant
+        // preload neighbouring full images (not videos) so paging feels instant
         for (const n of [idx + 1, idx - 1]) {
           const nb = group[(n + group.length) % group.length];
-          if (!nb.dataset.video) new Image().src = nb.src;
+          if (!nb.dataset.video) new Image().src = nb.dataset.full || nb.src;
         }
       }
 
@@ -344,6 +352,16 @@ const scrollRows = (images: Images) => {
         vid.src = src;
         vid.play().catch(() => {}); // user-initiated, but ignore if the browser still blocks
       });
+
+      // hide each feed image's spinner once it has loaded
+      for (const img of document.querySelectorAll<HTMLImageElement>('.media img')) {
+        const done = () => img.closest('.media')?.classList.add('loaded');
+        if (img.complete) done();
+        else {
+          img.addEventListener('load', done);
+          img.addEventListener('error', done);
+        }
+      }
 
       // paging stays within the clicked post
       for (const article of document.querySelectorAll('article')) {

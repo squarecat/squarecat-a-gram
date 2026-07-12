@@ -1,38 +1,34 @@
 ---
-// A single feed media item: photo → <img>; video → poster <img> + play badge, with the
-// mp4 in data-video so the lightbox can play it. `class` carries per-layout sizing.
+// A single feed media item, wrapped in a `.media` span that shows a loading spinner behind the
+// image until it loads. Photo → just the <img>; video → poster <img> + a play badge.
+// The grid shows a small `thumb`; `data-full` is the full image the lightbox loads, and
+// `data-video` (videos only) is the mp4 to play. `class` carries per-layout sizing.
 interface Props {
-  item: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string };
+  item: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string; thumb?: string };
   class?: string;
 }
 const { item, class: cls = '' } = Astro.props;
 const isVideo = item.kind === 'video';
+const full = isVideo ? item.poster : item.src;
+const grid = item.thumb ?? full;
 ---
-{isVideo ? (
-  <span class:list={['media-video relative inline-block leading-none', cls]}>
-    <img
-      src={item.poster}
-      width={item.w}
-      height={item.h}
-      data-video={item.src}
-      loading="lazy"
-      alt=""
-      class="lightboxable block h-full w-auto cursor-zoom-in bg-neutral-100 object-cover"
-    />
-    <span class="pointer-events-none absolute inset-0 grid place-items-center">
+<span class:list={['media relative inline-block overflow-hidden bg-neutral-100 leading-none', cls]}>
+  <img
+    src={grid}
+    width={item.w}
+    height={item.h}
+    data-video={isVideo ? item.src : undefined}
+    data-full={full}
+    loading="lazy"
+    alt=""
+    class="lightboxable relative z-[1] block h-full w-auto cursor-zoom-in object-cover"
+  />
+  {isVideo && (
+    <span class="pointer-events-none absolute inset-0 z-[2] grid place-items-center">
       <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
         <circle cx="23" cy="23" r="23" fill="rgba(0,0,0,0.45)" />
         <path d="M19 15l13 8-13 8z" fill="#fff" />
       </svg>
     </span>
-  </span>
-) : (
-  <img
-    src={item.src}
-    width={item.w}
-    height={item.h}
-    loading="lazy"
-    alt=""
-    class:list={['lightboxable cursor-zoom-in bg-neutral-100', cls]}
-  />
-)}
+  )}
+</span>
