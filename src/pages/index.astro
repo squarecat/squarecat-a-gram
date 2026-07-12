@@ -480,7 +480,14 @@ const scrollRows = (images: Images) => {
             const counts = await res.json();
             const entries = Object.entries(counts);
             summary.hidden = entries.length === 0;
-            summary.innerHTML = entries.map(([em, n]) => `<span>${em} ${n}</span>`).join('');
+            // build with textContent, never innerHTML, so a stored value can never be markup
+            summary.replaceChildren(
+              ...entries.map(([em, n]) => {
+                const s = document.createElement('span');
+                s.textContent = `${em} ${n}`;
+                return s;
+              }),
+            );
           });
         }
 

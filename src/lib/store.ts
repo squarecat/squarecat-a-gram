@@ -38,7 +38,9 @@ export const REACTION_EMOJIS_REPLY = ['👍', '👎', ...REACTION_EMOJIS];
 
 /** Add a reaction, removing the reactor's previous one (so a click overrides, not stacks). */
 export function applyReaction(reactions: Record<string, number>, emoji: string, prev?: string): void {
-  if (prev && prev !== emoji && reactions[prev]) {
+  // hasOwn (not `reactions[prev]`) so a crafted prev like "constructor"/"__proto__" can't
+  // match an inherited property and inject a junk key into the stored reactions.
+  if (prev && prev !== emoji && Object.hasOwn(reactions, prev)) {
     reactions[prev]--;
     if (reactions[prev] <= 0) delete reactions[prev];
   }

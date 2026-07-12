@@ -24,10 +24,21 @@ async function titlePath(): Promise<string> {
   return titlePathCached;
 }
 
+// Memoise the rendered image, keyed by the latest post — so hammering /og.jpg (unfurlers,
+// HN traffic) can't turn per-request sharp work into a CPU DoS.
+let cache: { key: string; buf: Buffer } | null = null;
+
 // 1200x630 unfurl image: latest post's first photo, dark gradient, title text on top.
 export const GET: APIRoute = async () => {
   const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latest = posts[0];
+
+  const cacheKey = `${latest?.id ?? 'none'}|${latest?.images[0]?.src ?? ''}|${latest?.title ?? ''}`;
+  if (cache?.key === cacheKey) {
+    return new Response(cache.buf, {
+      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=3600' },
+    });
+  }
   const date = latest
     ? new Date(latest.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
@@ -55,6 +66,7 @@ export const GET: APIRoute = async () => {
     .jpeg({ quality: 85 })
     .toBuffer();
 
+  cache = { key: cacheKey, buf };
   return new Response(buf, {
     headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=3600' },
   });

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "A tiny self-hosted photo & video travel blog. Paste an Ente album link, get a public feed with maps, comments, reactions and push notifications — no database, no Instagram.",
   "license": "MIT",
   "scripts": {
     "dev": "astro dev",

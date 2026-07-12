@@ -15,6 +15,17 @@ export const POST: APIRoute = async ({ request }) => {
   ) {
     return new Response('Invalid subscription', { status: 400 });
   }
+  // The server later POSTs to this endpoint (web push) — so it's an SSRF sink. Real push
+  // services use public hostnames; reject IP literals / localhost to block internal targets.
+  let host: string;
+  try {
+    host = new URL(sub.endpoint).hostname;
+  } catch {
+    return new Response('Invalid subscription', { status: 400 });
+  }
+  if (host === 'localhost' || host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    return new Response('Invalid subscription', { status: 400 });
+  }
   const name = typeof sub.name === 'string' ? sub.name.trim().slice(0, 50) : undefined;
   const authorId = typeof sub.authorId === 'string' ? sub.authorId.trim().slice(0, 64) : undefined;
   await addSubscription({

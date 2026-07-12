@@ -1,10 +1,14 @@
 # Squarecat-a-gram
 
+**A tiny self-hosted photo & video travel blog. Paste an Ente album link, get a public feed with
+maps, comments, reactions and push notifications — no database, no Instagram.**
+
 A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
 pasting an album share link + a caption into a password-gated form; the server downloads the
 photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
-a fully public feed of masonry/scroller photo (and video) posts with comments, emoji reactions,
-and a little globe pinned to where each post was taken. No database — posts live in a JSON file.
+a fully public feed of masonry/scroller photo (and video) posts with threaded comments, emoji
+reactions, and a little globe pinned to where each post was taken. No database — posts live in a
+JSON file.
 Optional web push notifies subscribers of new posts.
 
 <img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
@@ -62,7 +66,7 @@ A `.env` file in the working directory is loaded automatically (dotenv); already
 | `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` forms to publish/edit/delete |
 | `SITE_URL` | *(request origin)* | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | *(unset — push disabled)* | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | *(unset — off)* | Ping a Telegram chat on each new comment. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups). |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | *(unset — off)* | Ping a Telegram chat on each new comment or reply. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups). |
 | `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts) |
 | `DATA_FILE` | `data/posts.json` | Post store |
 | `SUBS_FILE` | `data/subscriptions.json` | Push subscription store |
@@ -100,13 +104,16 @@ in `src/sources/types.ts`:
 export interface AlbumImage {
   title: string;               // original filename (drives HEIC handling)
   takenAt: number;             // epoch µs, for ordering
-  download(): Promise<Buffer>; // original image bytes, decrypted/decoded
+  kind: 'image' | 'video';
+  lat?: number;                // capture GPS, if the source has it (globe pin)
+  lng?: number;
+  download(): Promise<Buffer>; // original bytes, decrypted/decoded
 }
 
 export interface Source {
   name: string;
   matches(shareUrl: string): boolean;
-  /** Validate + list album images, sorted by takenAt. Throw human-readable errors. */
+  /** Validate + list album items, sorted by takenAt. Throw human-readable errors. */
   list(shareUrl: string): Promise<AlbumImage[]>;
 }
 ```
@@ -118,9 +125,10 @@ export const sources: Source[] = [enteSource, googlePhotosSource];
 ```
 
 The publish pipeline (`src/lib/publish.ts`) handles everything after `download()`: HEIC
-fallback, EXIF stripping, resizing, webp encoding, and the post store. Sources should filter
-out non-images (videos etc.) themselves. `src/sources/ente.ts` is the reference
-implementation, including end-to-end decryption of Ente's public albums.
+fallback, video transcoding (ffmpeg → web-safe H.264 + poster), EXIF stripping, resizing, webp
+encoding, and the post store. A source just marks each item's `kind` (and optional `lat`/`lng`).
+`src/sources/ente.ts` is the reference implementation, including end-to-end decryption of Ente's
+public albums.
 
 ## Deploy (Docker)
 
@@ -138,17 +146,24 @@ docker run -d -p 2987:2987 --env-file .env \
 into the image.
 
 The app listens on `:2987` and serves everything itself (pages, `/media/*` with immutable
-cache headers, the admin). Put whatever TLS/proxy you like in front — one note if you do:
-publishing processes a whole album synchronously in the POST, so give the proxy a generous
-read timeout (e.g. 600s).
+cache headers, the admin). Put whatever TLS/proxy you like in front. Publishing runs as a
+background job (the compose form shows a progress bar), so it won't hit a proxy timeout — but
+**re-syncing** an album from the edit page is still synchronous, so keep a generous proxy read
+timeout (e.g. 600s) if you re-sync large or video-heavy albums.
 
 `data/` and `media/` are the only state — mount them as volumes and back them up.
 
-Non-Docker deploys work too: `yarn && yarn build`, then run `node dist/server/entry.mjs` with
-the env vars set (Node ≥ 20.19; `heic-convert` covers HEIC if the host's sharp lacks libheif).
+**Video** posts are transcoded with `ffmpeg`, which the Docker image includes. Non-Docker
+deploys work too — `yarn && yarn build`, then run `node dist/server/entry.mjs` with the env
+vars set — but need **`ffmpeg` on `PATH`** for videos (`apt install ffmpeg`), Node ≥ 20.19, and
+`heic-convert` (covers HEIC if the host's sharp lacks libheif).
 
 ## Deliberately not included
 
-Videos/live photos (skipped at publish with a note), comment moderation UI (edit
-`data/posts.json`), reaction rate-limiting beyond a honeypot + localStorage, multiple albums
-per post. All additive.
+Live photos (skipped at publish with a note), reaction rate-limiting beyond a honeypot +
+localStorage, multiple albums per post. All additive.
+
+## License
+
+[MIT](LICENSE) — free to use, modify, and self-host. Just keep the copyright notice (the
+`LICENSE` file) so the original work stays credited.
