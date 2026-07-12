@@ -14,7 +14,7 @@ Each photo album you make becomes a post on your feed that visitors can comment 
 
 - Add photos to an album in iCloud or Ente
 - Share it to get a public link
-- Paste that link into Squarecat-a-gram
+- Paste that link into Squarecat-a-gram via the `/admin` screen with your password
 - It does a bit of processing, then a new post appears on your feed!
 - Any subscribers are sent a web notification
 
