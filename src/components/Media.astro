@@ -6,8 +6,9 @@
 interface Props {
   item: { src: string; w: number; h: number; kind?: 'image' | 'video'; poster?: string; thumb?: string };
   class?: string;
+  cover?: boolean; // fill the wrapper's fixed box (crop) instead of sizing to the image's aspect
 }
-const { item, class: cls = '' } = Astro.props;
+const { item, class: cls = '', cover = false } = Astro.props;
 const isVideo = item.kind === 'video';
 const full = isVideo ? item.poster : item.src;
 const grid = item.thumb ?? full;
@@ -21,7 +22,10 @@ const grid = item.thumb ?? full;
     data-full={full}
     loading="lazy"
     alt=""
-    class="lightboxable relative z-[1] block h-full w-auto cursor-zoom-in object-cover"
+    class:list={[
+      'lightboxable relative z-[1] block h-full cursor-zoom-in object-cover',
+      cover ? 'w-full' : 'w-auto',
+    ]}
   />
   {isVideo && (
     <span class="pointer-events-none absolute inset-0 z-[2] grid place-items-center">

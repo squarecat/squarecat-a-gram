@@ -18,22 +18,39 @@ const ogDescription = latest
   ? [fmt(latest.createdAt), latest.title, latest.caption].filter(Boolean).join(' — ').slice(0, 200)
   : site.tagline;
 
-// >6 photos → horizontal 2-row scroller. Odd count: first photo becomes a
-// double-height hero. Rows are balanced by cumulative width (aspect ratio at equal
-// height), not photo count, so a landscape-heavy row can't run long.
+// >6 photos → horizontal 2-row scroller packed into full-height COLUMNS, so the block is always
+// an even rectangle (no ragged end) with no double-height images in the middle.
+//   - A landscape is one full-width "cell"; two portraits pack side-by-side into one cell the
+//     same width. Portraits pair GLOBALLY (one can wait across a landscape for its partner) so at
+//     most one portrait is ever left over in the whole post. Everything is cover-cropped.
+//   - Cells stack two-high into columns. The first photo, a leftover cell, and the one possible
+//     odd portrait each go double-height to keep the box closed.
 type Images = (typeof posts)[number]['images'];
-const scrollRows = (images: Images) => {
-  const hero = images.length % 2 ? images[0] : null;
-  const rest = hero ? images.slice(1) : images;
-  const rows: [Images, Images] = [[], []];
-  const width = [0, 0];
-  for (const img of rest) {
-    const r = width[0] <= width[1] ? 0 : 1;
-    rows[r].push(img);
-    width[r] += img.w / img.h;
+type Img = Images[number];
+type Cell = Img[]; // one landscape, or two portraits (each half a landscape wide)
+type Column = { kind: 'big'; img: Img } | { kind: 'stack'; top: Cell; bottom: Cell } | { kind: 'tall'; cell: Cell };
+const landscape = (img: Img) => img.w >= img.h;
+const buildColumns = (images: Images): Column[] => {
+  if (!images.length) return [];
+  const cols: Column[] = [{ kind: 'big', img: images[0] }]; // hero
+  const cells: Cell[] = [];
+  let stash: Img | null = null; // a lone portrait waiting for a partner
+  for (const img of images.slice(1)) {
+    if (landscape(img)) cells.push([img]);
+    else if (stash) (cells.push([stash, img]), (stash = null));
+    else stash = img;
   }
-  return { hero, rows };
+  for (let j = 0; j < cells.length; j += 2) {
+    if (j + 1 < cells.length) cols.push({ kind: 'stack', top: cells[j], bottom: cells[j + 1] });
+    else cols.push({ kind: 'tall', cell: cells[j] }); // lone trailing cell → double height
+  }
+  if (stash) cols.push({ kind: 'big', img: stash }); // odd portrait → its own double column
+  return cols;
 };
+// fixed widths: landscape is twice a portrait; double-height cells are twice as tall/wide
+const singleW = (img: Img) => (landscape(img) ? 'w-[320px]' : 'w-[160px]');
+const doubleW = (img: Img) => (landscape(img) ? 'w-[640px]' : 'w-[320px]');
+const fade = 'transition-opacity duration-200 hover:opacity-85';
 ---
 
 <!doctype html>
@@ -85,7 +102,6 @@ const scrollRows = (images: Images) => {
       {posts.length === 0 && <p class="text-center text-neutral-400">Nothing here yet.</p>}
       {
         posts.map((post) => {
-          const { hero, rows } = scrollRows(post.images);
           // globe pin: the album's GPS if we have it, else the picked country's centroid
           const place =
             post.lat != null && post.lng != null ? { lat: post.lat, lng: post.lng } : findCountry(post.country);
@@ -99,16 +115,24 @@ const scrollRows = (images: Images) => {
             {post.images.length > 6 ? (
               <div class="overflow-x-auto">
                 <div class="mx-auto flex w-max gap-px">
-                  {hero && <Media item={hero} class="h-[481px] w-auto transition-opacity duration-200 hover:opacity-85" />}
-                  <div class="flex flex-col gap-px">
-                    {rows.map((row) => (
+                  {buildColumns(post.images).map((col) =>
+                    col.kind === 'big' ? (
+                      <Media item={col.img} cover class={`h-[481px] ${doubleW(col.img)} ${fade}`} />
+                    ) : col.kind === 'tall' ? (
                       <div class="flex gap-px">
-                        {row.map((img) => (
-                          <Media item={img} class="h-60 w-auto transition-opacity duration-200 hover:opacity-85" />
-                        ))}
+                        {col.cell.map((img) => <Media item={img} cover class={`h-[481px] ${doubleW(img)} ${fade}`} />)}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div class="flex flex-col gap-px">
+                        <div class="flex gap-px">
+                          {col.top.map((img) => <Media item={img} cover class={`h-60 ${singleW(img)} ${fade}`} />)}
+                        </div>
+                        <div class="flex gap-px">
+                          {col.bottom.map((img) => <Media item={img} cover class={`h-60 ${singleW(img)} ${fade}`} />)}
+                        </div>
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             ) : (
