@@ -1,13 +1,16 @@
 ---
-// Auth is nginx HTTP Basic on /admin + /api/ plus the ADMIN_PASSWORD form field.
+// Gated by a session cookie — you enter the password once (see /api/login + lib/auth).
 import '../styles/global.css';
 import site from '../../site.json';
 import { readPosts } from '../lib/store';
 import { COUNTRIES } from '../lib/countries';
 import { readSubscriptions } from '../lib/subscriptions';
+import { adminEnabled, isAuthed } from '../lib/auth';
 
-const posts = (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-const subs = await readSubscriptions();
+const authed = isAuthed(Astro.cookies);
+const loginError = Astro.url.searchParams.has('error');
+const posts = authed ? (await readPosts()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) : [];
+const subs = authed ? await readSubscriptions() : [];
 const namedSubs = subs.filter((s) => s.name).length;
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -19,10 +22,43 @@ const fmt = (iso: string) =>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>New post</title>
+    <title>{authed ? 'New post' : 'Sign in'}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Butterfly+Kids&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-neutral-50 text-neutral-800 antialiased">
-    <div class="mx-auto max-w-xl px-4 py-16">
+    {!authed && (
+      <div class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4">
+        <h1 class="font-hand mb-6 text-center text-4xl text-neutral-900">{site.name}</h1>
+        {adminEnabled() ? (
+          <form method="post" action="/api/login" class="space-y-3">
+            <label class="block">
+              <span class="text-sm font-medium">Password</span>
+              <input
+                type="password"
+                name="password"
+                required
+                autofocus
+                autocomplete="current-password"
+                class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
+              />
+            </label>
+            {loginError && <p class="text-sm text-red-600">Wrong password.</p>}
+            <button class="w-full cursor-pointer rounded-lg bg-neutral-900 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-neutral-700">
+              Sign in
+            </button>
+          </form>
+        ) : (
+          <p class="text-center text-sm text-neutral-500">
+            Admin is disabled — set <code>ADMIN_PASSWORD</code> on the server to enable it.
+          </p>
+        )}
+        <p class="mt-8 text-center text-sm"><a href="/" class="text-neutral-500 hover:text-neutral-900">&larr; Back to the feed</a></p>
+      </div>
+    )}
+
+    <div class="mx-auto max-w-xl px-4 py-16" style={authed ? '' : 'display:none'}>
       <div class="mb-8 flex items-baseline justify-between">
         <h1 class="text-xl font-semibold text-neutral-900">New post</h1>
         <span class="text-sm text-neutral-400">
@@ -69,16 +105,6 @@ const fmt = (iso: string) =>
           <input
             type="date"
             name="date"
-            class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
-          />
-        </label>
-        <label class="block">
-          <span class="text-sm font-medium">Password</span>
-          <input
-            type="password"
-            name="password"
-            required
-            autocomplete="current-password"
             class="mt-1.5 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 shadow-sm focus:border-neutral-500 focus:ring-0 focus:outline-none"
           />
         </label>
@@ -141,7 +167,9 @@ const fmt = (iso: string) =>
       )}
     </div>
     <script>
-      const form = document.querySelector('form') as HTMLFormElement;
+      // the compose form only exists when signed in; on the login page there's nothing to wire up
+      const form = document.querySelector('form[action="/api/publish"]') as HTMLFormElement | null;
+      if (form) {
       const btn = document.getElementById('publish-btn') as HTMLButtonElement;
       const progress = document.getElementById('progress')!;
       const bar = document.getElementById('progress-bar') as HTMLElement;
@@ -198,6 +226,7 @@ const fmt = (iso: string) =>
           }
         }, 1000);
       });
+      }
     </script>
   </body>
 </html>

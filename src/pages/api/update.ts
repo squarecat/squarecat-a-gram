@@ -1,13 +1,14 @@
 import type { APIRoute } from 'astro';
-import { albumToImages, requirePassword } from '../../lib/publish';
+import { albumToImages } from '../../lib/publish';
+import { requireAuth } from '../../lib/auth';
 import { readPosts, updatePosts, type Post } from '../../lib/store';
 import { createJob, finishJob, updateJob } from '../../lib/jobs';
 
 // Like /api/publish, this runs as a background job so a re-sync (which downloads + re-encodes
 // the whole album) can't hit a proxy timeout, and the edit form can show a progress bar.
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  const gate = requirePassword(form);
+  const gate = requireAuth(cookies);
   if (gate) return gate;
 
   const id = String(form.get('id') ?? '');

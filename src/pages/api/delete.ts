@@ -2,14 +2,14 @@ import 'dotenv/config';
 import type { APIRoute } from 'astro';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { requirePassword } from '../../lib/publish';
+import { requireAuth } from '../../lib/auth';
 import { updatePosts } from '../../lib/store';
 
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request, redirect, cookies }) => {
   const form = await request.formData();
-  const gate = requirePassword(form);
+  const gate = requireAuth(cookies);
   if (gate) return gate;
 
   const id = String(form.get('id') ?? '');

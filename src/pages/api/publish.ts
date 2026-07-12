@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { albumToImages, requirePassword } from '../../lib/publish';
+import { albumToImages } from '../../lib/publish';
+import { requireAuth } from '../../lib/auth';
 import { addPost, type Post } from '../../lib/store';
 import { notifyNewPost } from '../../lib/push';
 import { createJob, finishJob, updateJob } from '../../lib/jobs';
@@ -7,9 +8,9 @@ import { createJob, finishJob, updateJob } from '../../lib/jobs';
 // Publishing (download + decrypt + transcode + encode a whole album) can take minutes and
 // blow past a proxy timeout, so run it as a background job: return a job id immediately, and
 // the client polls /api/publish-status while a progress bar fills.
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const form = await request.formData();
-  const gate = requirePassword(form);
+  const gate = requireAuth(cookies);
   if (gate) return gate; // wrong/no password → 401 synchronously, no job
 
   const enteUrl = String(form.get('enteUrl') ?? '').trim();

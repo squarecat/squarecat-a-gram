@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
-import { requirePassword } from '../../lib/publish';
+import { requireAuth } from '../../lib/auth';
 import { updatePosts } from '../../lib/store';
 
 // Password-gated (admin edit form). Deletes a comment by its index in the post.
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request, redirect, cookies }) => {
   const form = await request.formData();
-  const gate = requirePassword(form);
+  const gate = requireAuth(cookies);
   if (gate) return gate;
 
   const id = String(form.get('id') ?? '');

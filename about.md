@@ -1,4 +1,4 @@
-# About
+## About
 
 Hello, we're **Danielle & James**, welcome to our little travel feed.
 

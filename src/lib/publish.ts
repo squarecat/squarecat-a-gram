@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import { execFile } from 'node:child_process';
-import { timingSafeEqual } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -11,19 +10,6 @@ import type { Post } from './store';
 
 const run = promisify(execFile);
 const MEDIA_DIR = process.env.MEDIA_DIR ?? 'media';
-
-/** 401 Response if the form's password is missing/wrong, null if OK. */
-export function requirePassword(form: FormData): Response | null {
-  const expected = process.env.ADMIN_PASSWORD;
-  const given = Buffer.from(String(form.get('password') ?? ''));
-  if (expected && given.length === Buffer.from(expected).length && timingSafeEqual(given, Buffer.from(expected))) {
-    return null;
-  }
-  const msg = expected
-    ? 'Wrong password.'
-    : 'Publishing is disabled: ADMIN_PASSWORD is not set on the server.';
-  return new Response(msg, { status: 401, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-}
 
 // EXIF (incl. GPS/home coordinates) is stripped by sharp by default — this feed is
 // fully public, so never add .withMetadata() here.
