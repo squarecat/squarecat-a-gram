@@ -4,7 +4,7 @@
 
 Supports [iCloud Photos](https://www.icloud.com/photos) & [Ente](https://ente.com/).
 
-<img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
+<img width="2452" height="1666" alt="CleanShot 2026-07-12 at 14 14 15@2x" src="https://github.com/user-attachments/assets/25ca42f3-66b8-4cb5-9ee4-c966223df8a2" />
 
 You can see it running at https://feed.squarecat.io
 
@@ -14,7 +14,7 @@ Each photo album you make becomes a post on your feed that visitors can comment 
 
 - Add photos to an album in iCloud or Ente
 - Share it to get a public link
-- Paste that link into Squarecat-a-gram
+- Paste that link into Squarecat-a-gram via the `/admin` screen with your password
 - It does a bit of processing, then a new post appears on your feed!
 - Any subscribers are sent a web notification
 
