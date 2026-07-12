@@ -1,28 +1,29 @@
 # Squarecat-a-gram
 
-**A tiny self-hosted photo & video travel blog. Paste an Ente album link, get a public feed with
-maps, comments, reactions and push notifications — no database, no Instagram.**
+**A tiny self-hosted photo blog. Think personal, private Instagram, without the brain rot**
 
-A tiny self-hosted photo blog fed by shared photo albums. The author publishes a post by
-pasting an album share link + a caption into a password-gated form; the server downloads the
-photos **once at publish time**, strips EXIF (including GPS), resizes them to webp, and serves
-a fully public feed of masonry/scroller photo (and video) posts with threaded comments, emoji
-reactions, and a little globe pinned to where each post was taken. No database — posts live in a
-JSON file.
-Optional web push notifies subscribers of new posts.
+Supports [iCloud Photos](https://www.icloud.com/photos) & [Ente](https://ente.com/).
 
 <img width="2104" height="1666" alt="CleanShot 2026-07-06 at 12 40 00@2x" src="https://github.com/user-attachments/assets/7b60285a-8593-4c0a-8690-b0c0fb5adfef" />
 
-Example at https://feed.squarecat.io
+You can see it running at https://feed.squarecat.io
 
-Built-in photo source: **[Ente](https://ente.io)** public album links (including self-hosted
-Ente). Other sources (Google Photos, …) can be added — see [Writing a photo source](#writing-a-photo-source).
+## How?
+
+Each photo album you make becomes a post on your feed that visitors can comment on or react to!
+
+- Add photos to an album in iCloud or Ente
+- Share it to get a public link
+- Paste that link into Squarecat-a-gram
+- It does a bit of processing, then a new post appears on your feed!
+- Any subscribers are sent a web notification
 
 ## Quick start
 
 ```sh
-yarn                 # Node ≥ 20.19 (≥ 22.6 for yarn selfcheck)
-yarn dev             # dev server on :2987
+yarn                 # Node ≥ 22
+cp .env.example .env
+yarn dev             # dev server runs on :2987
 yarn build && yarn start
 ```
 
@@ -41,37 +42,32 @@ First publish: use a **1-photo album** to shake out the pipeline before trusting
 
 ### `site.json`
 
-| Key | Used for |
-|---|---|
-| `name` | `<h1>`, `<title>`, OG title, handwritten line of the OG image |
-| `subtitle` | `<title>`, second line of the OG image |
-| `tagline` | Header subheading, OG description fallback |
-| `defaultAuthor` | Prefill for the "Posted by" form field + signature fallback for old posts |
+The bits of text shown around the site:
 
-Rebuild after changing it (`yarn build`) — it's bundled at build time.
+| Key             | Used for                                                                  |
+| --------------- | ------------------------------------------------------------------------- |
+| `name`          | `<h1>`, `<title>`, OG title, handwritten line of the OG image             |
+| `subtitle`      | `<title>`, second line of the OG image                                    |
+| `tagline`       | Header subheading, OG description fallback                                |
+| `defaultAuthor` | Prefill for the "Posted by" form field + signature fallback for old posts |
 
 ### `about.md`
 
-The `/about` page (linked from the feed footer) is rendered from **`about.md`** in the repo
-root — plain Markdown, edit it to describe your feed. Bundled at build time like `site.json`,
-so rebuild after changing it.
+The `/about` page is rendered from **`about.md`**.
 
 ### Environment variables
 
-A `.env` file in the working directory is loaded automatically (dotenv); already-set vars
-(e.g. systemd `Environment=`) win.
-
-| Var | Default | |
-|---|---|---|
-| `ADMIN_PASSWORD` | *(unset — publishing disabled)* | Required in the `/admin` forms to publish/edit/delete |
-| `SITE_URL` | *(request origin)* | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | *(unset — push disabled)* | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | *(unset — off)* | Ping a Telegram chat on each new comment or reply. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups). |
-| `ENTE_API_BASE` | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts) |
-| `DATA_FILE` | `data/posts.json` | Post store |
-| `SUBS_FILE` | `data/subscriptions.json` | Push subscription store |
-| `MEDIA_DIR` | `media` | Optimised images, written at publish time |
-| `HOST` / `PORT` | `0.0.0.0` / `2987` | Node server bind (`yarn start` sets these) |
+| Var                                                        | Default                           |                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_PASSWORD`                                           | _(unset — publishing disabled)_   | Required in the `/admin` forms to publish/edit/delete                                                                                                                                                   |
+| `SITE_URL`                                                 | _(request origin)_                | Public origin, e.g. `https://feed.example.com` — required in prod for correct unfurl URLs                                                                                                               |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | _(unset — push disabled)_         | Web push. Generate the keypair once with `npx web-push generate-vapid-keys`; subject is `mailto:you@example.com`. All three unset → the "Get notified" button hides and publishing skips notifications. |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`                  | _(unset — off)_                   | Ping a Telegram chat on each new comment or reply. Token from [@BotFather](https://t.me/BotFather); add the bot to the chat and use its id (negative for channels/groups).                              |
+| `ENTE_API_BASE`                                            | `https://photos.squarecat.io/api` | Ente museum API (set to `https://api.ente.io` for ente.io accounts)                                                                                                                                     |
+| `DATA_FILE`                                                | `data/posts.json`                 | Post store                                                                                                                                                                                              |
+| `SUBS_FILE`                                                | `data/subscriptions.json`         | Push subscription store                                                                                                                                                                                 |
+| `MEDIA_DIR`                                                | `media`                           | Optimised images, written at publish time                                                                                                                                                               |
+| `HOST` / `PORT`                                            | `0.0.0.0` / `2987`                | Node server bind (`yarn start` sets these)                                                                                                                                                              |
 
 ### Self-check
 
@@ -82,88 +78,108 @@ yarn selfcheck "https://…?t=…#…"    # + live Ente album round-trip
 
 ## Location globe
 
-Each post shows a small globe pinned to where it was taken. The pin location is resolved in
-this order:
+Every post shows a little globe with a pin on where it was taken. It figures out the spot like
+this:
 
-1. **The first photo's GPS**, read from the album metadata at publish time — automatic, nothing
-   to fill in. The coordinate is **rounded to ~11 km before it's stored**, so the exact spot
-   (e.g. a home) is never saved or shown — consistent with stripping EXIF off the public images.
-2. **A country picker** (optional field on the compose/edit form) — the fallback when the photos
-   have no GPS (screenshots, cameras with location off).
+1. **From the first photo's GPS**, read straight from the album — nothing for you to do. Before
+   it's saved, the coordinate is rounded to roughly the nearest 11 km, so the exact spot (your
+   home, say) is never stored or shown.
+2. **From a country picker** on the publish form, as a fallback for photos that have no location
+   (screenshots, or a camera with location turned off). iCloud albums don't include GPS, so
+   iCloud posts always use this — the form nudges you to pick a country.
 
-If neither is available, the post simply has no globe. The globe is server-rendered SVG with
-real continents (via `d3-geo` + a bundled Natural Earth land file in `src/geo/`) — no client JS,
-no map tiles, no network calls. Country centroids live in `src/geo/countries.json`.
+If there's neither, the post just doesn't get a globe. The globe itself is a small SVG drawn on
+the server with real continents (using `d3-geo` and a bundled map file in `src/geo/`), so there
+are no map tiles, no third-party requests, and no JavaScript needed to render it.
 
-## Writing a photo source
+## Deploying
 
-A source turns a share URL into a list of downloadable original images. The whole contract is
-in `src/sources/types.ts`:
-
-```ts
-export interface AlbumImage {
-  title: string;               // original filename (drives HEIC handling)
-  takenAt: number;             // epoch µs, for ordering
-  kind: 'image' | 'video';
-  lat?: number;                // capture GPS, if the source has it (globe pin)
-  lng?: number;
-  download(): Promise<Buffer>; // original bytes, decrypted/decoded
-}
-
-export interface Source {
-  name: string;
-  matches(shareUrl: string): boolean;
-  /** Validate + list album items, sorted by takenAt. Throw human-readable errors. */
-  list(shareUrl: string): Promise<AlbumImage[]>;
-}
-```
-
-Add a module in `src/sources/` and register it in `src/sources/index.ts`:
-
-```ts
-export const sources: Source[] = [enteSource, googlePhotosSource];
-```
-
-The publish pipeline (`src/lib/publish.ts`) handles everything after `download()`: HEIC
-fallback, video transcoding (ffmpeg → web-safe H.264 + poster), EXIF stripping, resizing, webp
-encoding, and the post store. A source just marks each item's `kind` (and optional `lat`/`lng`).
-`src/sources/ente.ts` is the reference implementation, including end-to-end decryption of Ente's
-public albums.
-
-## Deploy (Docker)
+The simplest option is Docker:
 
 ```sh
-cp .env.example .env          # fill in ADMIN_PASSWORD, SITE_URL, VAPID keys, …
-docker compose up -d          # reads .env at runtime
-# or plain docker:
+cp .env.example .env          # fill in ADMIN_PASSWORD, SITE_URL, and any keys you want
+docker compose up -d          # reads your .env at runtime
+```
+
+Or with plain Docker:
+
+```sh
 docker build -t squarecat-a-gram .
 docker run -d -p 2987:2987 --env-file .env \
   -v ./data:/app/data -v ./media:/app/media \
   squarecat-a-gram
 ```
 
-`.env` is gitignored and dockerignored, so secrets are injected at runtime and never baked
-into the image.
+`.env` is kept out of both Git and the image, so your secrets are handed in at runtime rather
+than baked in.
 
-The app listens on `:2987` and serves everything itself (pages, `/media/*` with immutable
-cache headers, the admin). Put whatever TLS/proxy you like in front. Publishing runs as a
-background job (the compose form shows a progress bar), so it won't hit a proxy timeout — but
-**re-syncing** an album from the edit page is still synchronous, so keep a generous proxy read
-timeout (e.g. 600s) if you re-sync large or video-heavy albums.
+The app serves everything itself on port `2987` — the pages, the photos, the admin — so you can
+put whatever reverse proxy and HTTPS you like in front of it. One thing to know: publishing runs
+in the background with a progress bar, so it won't trip a proxy timeout, but _re-syncing_ an
+existing post still happens in one request, so give your proxy a generous read timeout (say
+600s) if you re-sync big or video-heavy albums.
 
-`data/` and `media/` are the only state — mount them as volumes and back them up.
+The `data/` and `media/` folders are the only state, so mount them as volumes and back them up.
 
-**Video** posts are transcoded with `ffmpeg`, which the Docker image includes. Non-Docker
-deploys work too — `yarn && yarn build`, then run `node dist/server/entry.mjs` with the env
-vars set — but need **`ffmpeg` on `PATH`** for videos (`apt install ffmpeg`), Node ≥ 20.19, and
-`heic-convert` (covers HEIC if the host's sharp lacks libheif).
+Videos are converted with `ffmpeg`, which the Docker image already includes. You can also run
+it without Docker — `yarn && yarn build`, then `node dist/server/entry.mjs` with your env vars
+set — but you'll need `ffmpeg` on the `PATH` for videos (`apt install ffmpeg`), Node 20.19+, and
+`heic-convert` handles iPhone HEIC photos if your `sharp` build can't.
 
-## Deliberately not included
+## Contributing
 
-Live photos (skipped at publish with a note), reaction rate-limiting beyond a honeypot +
-localStorage, multiple albums per post. All additive.
+### Self-check
+
+This checks the fiddliest, most fragile part — decrypting Ente albums — without you having to
+publish anything. It's handy after updating dependencies, or if publishing suddenly starts
+producing garbled images.
+
+```sh
+yarn selfcheck                      # just the crypto round-trips
+yarn selfcheck "https://…?t=…#…"    # also runs against a real Ente album
+```
+
+On its own, it confirms the encryption building blocks work correctly against known values, so a
+broken crypto library fails loudly instead of subtly. Give it an Ente share link and it goes the
+whole way — reads the album, decrypts the file list and metadata, and downloads and decrypts the
+first image — so you know the real pipeline works before trusting it with a live post.
+
+### Writing a photo source
+
+A "source" is the bit that turns a shared-album link into a list of downloadable photos. The
+entire contract is in `src/sources/types.ts`:
+
+```ts
+export interface AlbumImage {
+  title: string; // original filename (used to spot HEIC files)
+  takenAt: number; // epoch µs, for ordering
+  kind: "image" | "video";
+  lat?: number; // capture location, if the source exposes it (for the globe)
+  lng?: number;
+  download(): Promise<Buffer>; // the original bytes, already decrypted/decoded
+}
+
+export interface Source {
+  name: string;
+  matches(shareUrl: string): boolean;
+  /** Validate and list the album's items, sorted by takenAt. Throw friendly errors. */
+  list(shareUrl: string): Promise<AlbumImage[]>;
+}
+```
+
+Write a module in `src/sources/` and add it to the list in `src/sources/index.ts`:
+
+```ts
+export const sources: Source[] = [enteSource, icloudSource, googlePhotosSource];
+```
+
+That's really all you have to do — everything after `download()` is handled for you: converting
+HEIC, transcoding video to a web-friendly format, stripping location data, resizing, and saving.
+Your source just fetches the items and tags each one's `kind` (and `lat`/`lng` if it has them).
+Two very different reference implementations are in the box: `src/sources/ente.ts` (fully
+encrypted) and `src/sources/icloud.ts` (a plain JSON API).
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and self-host. Just keep the copyright notice (the
-`LICENSE` file) so the original work stays credited.
+[MIT](LICENSE) — use it, change it, host it, whatever you like. Just keep the `LICENSE` file so
+the original work stays credited.

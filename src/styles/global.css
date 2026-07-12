@@ -33,10 +33,15 @@ body:has(dialog[open]) {
   height: var(--row);
 }
 .gallery img {
-  height: 100%;
   width: auto;
   max-width: 100%;
   object-fit: cover; /* ultra-wide panoramas crop instead of shrinking the row */
+}
+/* a video item is a <span> wrapper — its inner <img> fills the wrapper's row height.
+   (direct photo <img>s get their height from `.gallery > *` above; don't set 100% here,
+   or it beats that rule on specificity and resolves to the image's intrinsic height.) */
+.gallery .media-video img {
+  height: 100%;
 }
 @media (max-width: 640px) {
   .gallery { --row: 150px; }
