@@ -5,7 +5,7 @@
   font-weight: 600;
 }
 
-h1.font-hand {
+h1.font-hand, h2.font-hand {
   font-weight: 400;  
 }
 
@@ -52,7 +52,7 @@ hr {
   opacity: 0.1;
 }
 
-h2 {
+h3 {
   font-size: 22px;
   font-weight: bold;
   margin: 1em 0 0.25em 0; 
