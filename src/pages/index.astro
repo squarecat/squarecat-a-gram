@@ -40,11 +40,19 @@ const buildColumns = (images: Images): Column[] => {
     else if (stash) (cells.push([stash, img]), (stash = null));
     else stash = img;
   }
-  for (let j = 0; j < cells.length; j += 2) {
-    if (j + 1 < cells.length) cols.push({ kind: 'stack', top: cells[j], bottom: cells[j + 1] });
-    else cols.push({ kind: 'tall', cell: cells[j] }); // lone trailing cell → double height
-  }
-  if (stash) cols.push({ kind: 'big', img: stash }); // odd portrait → its own double column
+  // pair complete cells into full stack columns; keep the final odd cell (if any) as `last`
+  let i = 0;
+  for (; i + 1 < cells.length; i += 2) cols.push({ kind: 'stack', top: cells[i], bottom: cells[i + 1] });
+  const last = i < cells.length ? cells[i] : null;
+  // Lay out whatever's left over without piling up double-height images: a leftover landscape
+  // cell goes double-height, but leftover portraits pair up VERTICALLY into normal-height 160px
+  // columns, and only the one unavoidable odd portrait (2 rows can't hold an odd count) is doubled.
+  const tail: Img[] = [];
+  if (last && landscape(last[0])) cols.push({ kind: 'tall', cell: last });
+  else if (last) tail.push(...last);
+  if (stash) tail.push(stash);
+  for (let k = 0; k + 1 < tail.length; k += 2) cols.push({ kind: 'stack', top: [tail[k]], bottom: [tail[k + 1]] });
+  if (tail.length % 2) cols.push({ kind: 'big', img: tail[tail.length - 1] });
   return cols;
 };
 // fixed widths: a landscape must equal two portraits PLUS the 1px gap-px between them (160+1+160
